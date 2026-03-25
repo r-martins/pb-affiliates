@@ -1,0 +1,121 @@
+/**
+ * PB Afiliados — admin settings.
+ *
+ * Não use a classe `woocommerce` no wrapper: o admin.css do WC aplica
+ * table-layout fixo e larguras grandes em .woocommerce table.form-table.
+ */
+.pb-aff-admin-settings {
+	max-width: 960px;
+}
+
+.pb-aff-admin-settings .form-table th {
+	width: 220px;
+	vertical-align: top;
+}
+
+/* Toggle (inspired by WooCommerce admin toggles) */
+.pb-aff-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+	user-select: none;
+	vertical-align: middle;
+}
+
+.pb-aff-toggle input[type="checkbox"] {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.pb-aff-toggle__track {
+	position: relative;
+	width: 40px;
+	height: 22px;
+	flex-shrink: 0;
+	background: #c3c4c7;
+	border-radius: 11px;
+	transition: background 0.2s ease;
+}
+
+.pb-aff-toggle__track::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 18px;
+	height: 18px;
+	background: #fff;
+	border-radius: 50%;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+	transition: transform 0.2s ease;
+}
+
+.pb-aff-toggle input:checked + .pb-aff-toggle__track {
+	background: var(--wp-admin-theme-color, #2271b1);
+}
+
+.pb-aff-toggle input:checked + .pb-aff-toggle__track::after {
+	transform: translateX(18px);
+}
+
+.pb-aff-toggle__label {
+	font-weight: 400;
+	color: #1d2327;
+}
+
+/* Payment mode cards */
+.pb-aff-payment-modes {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-width: 520px;
+}
+
+.pb-aff-payment-mode {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 0;
+	padding: 12px 14px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+	cursor: pointer;
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pb-aff-payment-mode:hover {
+	border-color: #8c8f94;
+}
+
+.pb-aff-payment-mode.is-selected {
+	border-color: var(--wp-admin-theme-color, #2271b1);
+	box-shadow: 0 0 0 1px var(--wp-admin-theme-color, #2271b1);
+}
+
+.pb-aff-payment-mode input {
+	margin-top: 3px;
+}
+
+.pb-aff-payment-mode__text strong {
+	display: block;
+	margin-bottom: 2px;
+}
+
+.pb-aff-payment-mode__text span {
+	display: block;
+	color: #646970;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.pb-aff-subsection {
+	margin-top: 8px;
+}
+
+.pb-aff-row-hidden {
+	display: none !important;
+}

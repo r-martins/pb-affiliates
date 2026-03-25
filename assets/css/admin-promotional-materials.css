@@ -1,0 +1,42 @@
+/* Admin: materiais promocionais */
+.pb-aff-materials-wrap .pb-aff-materials-toolbar {
+	margin: 12px 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 16px 24px;
+}
+
+.pb-aff-materials-wrap .pb-aff-materials-toolbar .search-box {
+	float: none;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+}
+
+.pb-aff-materials-wrap .pb-aff-materials-type-filter {
+	margin: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pb-aff-material-file-preview {
+	margin-top: 12px;
+}
+
+.pb-aff-material-file-preview .pb-aff-thumb-wrap img {
+	max-width: 320px;
+	height: auto;
+	display: block;
+}
+
+.wp-list-table .column-thumb {
+	width: 70px;
+	vertical-align: middle;
+}
+
+.pb-aff-materials-wrap .column-actions {
+	width: 11em;
+}

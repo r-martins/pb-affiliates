@@ -1,0 +1,607 @@
+/**
+ * Área do afiliado — Minha conta (tabela de domínios).
+ *
+ * Compatibilidade: escopado a `.woocommerce-MyAccount-content` e classes prefixadas `pb-aff-`
+ * para não afetar o resto do site. Temas agressivos com `.woocommerce-Button` podem exigir
+ * `!important` pontual (documentado abaixo). Temas podem desativar esta folha com:
+ * `add_filter( 'pb_affiliates_enqueue_account_styles', '__return_false' );`
+ *
+ * Tamanhos em rem respeitam o zoom do usuário (boas práticas WP).
+ */
+
+/* -------------------------------------------------------------------------
+ * Dashboard: destaque compacto (total + pendentes) — primeiro bloco da página
+ * ------------------------------------------------------------------------- */
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline {
+	margin: 0 0 1.25rem;
+	padding: 1rem 1.35rem;
+	background: linear-gradient( 135deg, #eef5ff 0%, #e4ecfa 50%, #dce6ff 100% );
+	border: 2px solid var( --wc-primary, #2271b1 );
+	border-radius: 14px;
+	box-shadow: 0 4px 14px rgba( 34, 113, 177, 0.18 ), 0 1px 3px rgba( 15, 23, 42, 0.08 );
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__inner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: stretch;
+	justify-content: space-between;
+	gap: 1rem 1.5rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__stat {
+	flex: 1 1 12rem;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__stat--pending {
+	padding-left: 1rem;
+	border-left: 2px solid rgba( 148, 98, 0, 0.35 );
+}
+
+@media ( max-width: 520px ) {
+	.woocommerce-MyAccount-content .pb-aff-dashboard-topline__stat--pending {
+		padding-left: 0;
+		padding-top: 0.85rem;
+		border-left: none;
+		border-top: 2px solid rgba( 148, 98, 0, 0.35 );
+	}
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__label-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.2rem 0.35rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__label {
+	font-size: 0.72rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #2c5282;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__stat--pending .pb-aff-dashboard-topline__label {
+	color: #744210;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__value {
+	font-size: clamp( 1.25rem, 4vw,1.75rem );
+	font-weight: 800;
+	line-height: 1.15;
+	color: #1a202c;
+	letter-spacing: -0.02em;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__value .woocommerce-Price-amount {
+	font-weight: inherit;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-topline__hint {
+	margin: 0.85rem 0 0;
+	padding-top: 0.75rem;
+	border-top: 1px solid rgba( 34, 113, 177, 0.2 );
+	font-size: 0.8125rem;
+	line-height: 1.45;
+	color: #3d4a5c;
+}
+
+/* Ícone (i): significado ao hover / foco (nativo via title) */
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-info {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: help;
+	font-weight: 700;
+	font-size: 0.65rem;
+	line-height: 1;
+	vertical-align: middle;
+	color: var( --wc-primary, #2271b1 );
+	border: 1px solid currentColor;
+	border-radius: 50%;
+	min-width: 1.35em;
+	min-height: 1.35em;
+	padding: 1px;
+	box-sizing: border-box;
+	user-select: none;
+	flex-shrink: 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__title--with-info {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.35rem 0.5rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__title--with-info .pb-aff-dashboard-info {
+	font-size: 0.6rem;
+	min-width: 1.45em;
+	min-height: 1.45em;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__legend {
+	margin: -0.35em 0 0.85em;
+	font-size: 0.8125rem;
+	line-height: 1.4;
+	color: #5a6578;
+	max-width: 52rem;
+}
+
+/* -------------------------------------------------------------------------
+ * Dashboard: resumo de comissões (topo)
+ * ------------------------------------------------------------------------- */
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero {
+	margin: 0 0 1.75rem;
+	padding: 1.15rem 1.25rem 1.25rem;
+	background: linear-gradient( 145deg, #f4f7fb 0%, #eef2f8 45%, #e8edf5 100% );
+	border: 1px solid #c5d0df;
+	border-radius: 6px;
+	box-shadow: 0 1px 3px rgba( 15, 23, 42, 0.06 );
+	border-left: 4px solid var( --wc-primary, #2271b1 );
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__title {
+	margin: 0 0 0.35em;
+	font-size: clamp( 1.15rem, 2.5vw, 1.35rem );
+	line-height: 1.25;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__intro {
+	margin: 0 0 1em;
+	font-size: 0.9rem;
+	line-height: 1.45;
+	color: #3d4a5c;
+	max-width: 52rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 11.5rem, 1fr ) );
+	gap: 0.85rem;
+	align-items: stretch;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 0.75rem 0.85rem;
+	background: #fff;
+	border: 1px solid #dce3ec;
+	border-radius: 5px;
+	min-height: 100%;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__card--total {
+	border-top: 3px solid var( --wc-primary, #2271b1 );
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__card--pending {
+	border-top: 3px solid #946200;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__card--paid {
+	border-top: 3px solid #1e6b3a;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__label {
+	font-size: 0.78rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	color: #4a5568;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__amount {
+	font-size: clamp( 1rem, 2.4vw, 1.25rem );
+	font-weight: 700;
+	line-height: 1.2;
+	color: #1a202c;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__amount .woocommerce-Price-amount {
+	font-weight: inherit;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__meta {
+	font-size: 0.8125rem;
+	line-height: 1.35;
+	color: #5a6578;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__actions {
+	margin: 1rem 0 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__actions .button {
+	margin: 0;
+}
+
+/* Badge / (i) no hero: encostados ao texto; gap vem do flex do label */
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__label .pb-aff-badge,
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__label .pb-aff-dashboard-info {
+	margin-left: 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Link de afiliado + ícone (i) no texto introdutório
+ * ------------------------------------------------------------------------- */
+
+.woocommerce-MyAccount-content .pb-aff-link-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: stretch;
+	margin: 0 0 1em;
+}
+
+.woocommerce-MyAccount-content .pb-aff-link-row .pb-aff-link-row__input {
+	flex: 1;
+	min-width: 220px;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-intro .pb-aff-domain-info {
+	display: inline-block;
+	margin-left: 0.35em;
+	cursor: help;
+	font-weight: 600;
+	line-height: 1;
+}
+
+/* -------------------------------------------------------------------------
+ * Tabela e cabeçalho
+ * ------------------------------------------------------------------------- */
+
+.pb-aff-domain-heading {
+	margin-top: 1.25em;
+}
+
+.pb-aff-domain-table {
+	margin-top: 0.5em;
+}
+
+.pb-aff-domain-table .pb-aff-domain-table__action {
+	vertical-align: middle;
+	min-width: 0;
+	max-width: 16rem;
+}
+
+/* -------------------------------------------------------------------------
+ * Grupo de ações: layout flexível, sem forçar largura total (comum em temas WC)
+ * ------------------------------------------------------------------------- */
+
+.woocommerce-MyAccount-content .pb-aff-domain-actions {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 0.25rem 0.35rem;
+	align-items: center;
+	justify-content: flex-start;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-actions form {
+	display: inline-flex;
+	margin: 0;
+	flex: 0 0 auto;
+}
+
+/* -------------------------------------------------------------------------
+ * Botões — base (rem). !important só onde temas sobrescrevem min-height/padding.
+ * ------------------------------------------------------------------------- */
+
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button,
+.woocommerce-MyAccount-content .pb-aff-domain-actions a.button {
+	margin: 0;
+	line-height: 1.25;
+	font-size: 0.6875rem;
+	padding: 0.2em 0.5em;
+	border-radius: 2px;
+	box-sizing: border-box;
+	width: auto;
+	max-width: 100%;
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	text-decoration: none;
+	transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+	/* Temas (min-height ~44px em botões WC) — override pontual */
+	min-height: 0;
+	height: auto;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.woocommerce-Button,
+.woocommerce-MyAccount-content .pb-aff-domain-actions a.button.woocommerce-Button {
+	min-height: 0 !important;
+	padding: 0.2em 0.5em !important;
+	font-size: 0.6875rem !important;
+	line-height: 1.25 !important;
+}
+
+/* Primário */
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.pb-aff-btn--primary {
+	font-weight: 600;
+}
+
+/* Secundário — contorno; !important para vencer fundo sólido do tema */
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.pb-aff-btn--secondary {
+	background: transparent !important;
+	color: var(--wc-primary, #2271b1) !important;
+	border: 1px solid currentColor !important;
+	box-shadow: none !important;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.pb-aff-btn--secondary:hover,
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.pb-aff-btn--secondary:focus {
+	background: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Destrutivo — contraste explícito */
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.pb-aff-btn--danger {
+	background: #c53030 !important;
+	color: #fff !important;
+	border: 1px solid #9b2c2c !important;
+	box-shadow: none !important;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.pb-aff-btn--danger:hover,
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.pb-aff-btn--danger:focus {
+	background: #9b2c2c !important;
+	color: #fff !important;
+	border-color: #822727 !important;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-actions .button.pb-aff-btn--danger:focus {
+	outline: 2px solid #c53030;
+	outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------------------
+ * Instruções (URL + token) — texto secundário
+ * ------------------------------------------------------------------------- */
+
+.pb-aff-domain-table__instructions td {
+	padding-top: 0;
+	border-top: none;
+}
+
+/* Ligeiramente menor que o texto padrão do tema (~1rem) */
+.woocommerce-MyAccount-content .pb-aff-domain-table tr.pb-aff-domain-table__instructions .description,
+.woocommerce-MyAccount-content .pb-aff-domain-table tr.pb-aff-domain-table__instructions .description a {
+	font-size: 0.8rem !important;
+	line-height: 1.4;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-table tr.pb-aff-domain-table__instructions .description {
+	margin: 0 0 0.35em;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-table tr.pb-aff-domain-table__instructions .description:last-child {
+	margin-bottom: 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-table tr.pb-aff-domain-table__instructions a {
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.woocommerce-MyAccount-content .pb-aff-domain-table tr.pb-aff-domain-table__instructions code {
+	font-size: 0.75rem !important;
+	padding: 0.05em 0.25em;
+	border-radius: 2px;
+	line-height: 1.25;
+	word-break: break-all;
+}
+
+/* -------------------------------------------------------------------------
+ * Reforço quando o body tem classe WC (maioria dos temas)
+ * ------------------------------------------------------------------------- */
+
+body.woocommerce-account .woocommerce-MyAccount-content table.shop_table.pb-aff-domain-table td.pb-aff-domain-table__action .pb-aff-domain-actions .button.woocommerce-Button,
+body.woocommerce-account .woocommerce-MyAccount-content table.shop_table.pb-aff-domain-table td.pb-aff-domain-table__action .pb-aff-domain-actions a.button.woocommerce-Button {
+	min-height: 0 !important;
+	height: auto !important;
+	width: auto !important;
+}
+
+/* Relatórios (cliques + pedidos) */
+
+.woocommerce-MyAccount-content .pb-aff-report-summary {
+	margin: 0 0 1em 1.25em;
+	list-style: disc;
+}
+
+.woocommerce-MyAccount-content table.shop_table.pb-aff-report-table {
+	margin-top: 0.5em;
+}
+
+/* Tabela compacta: últimos registros (IP + URL) */
+
+.woocommerce-MyAccount-content table.shop_table.pb-aff-report-table--hits {
+	font-size: 0.8125rem;
+	line-height: 1.35;
+}
+
+.woocommerce-MyAccount-content table.shop_table.pb-aff-report-table--hits th,
+.woocommerce-MyAccount-content table.shop_table.pb-aff-report-table--hits td {
+	padding: 0.35rem 0.5rem;
+	vertical-align: top;
+}
+
+.woocommerce-MyAccount-content .pb-aff-report-table--hits .pb-aff-hit-ip {
+	font-size: 0.75rem;
+	word-break: break-all;
+}
+
+.woocommerce-MyAccount-content .pb-aff-report-table--hits .pb-aff-hit-url {
+	font-size: 0.75rem;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.woocommerce-MyAccount-content .pb-aff-report-table--hits code {
+	font-size: 0.75rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-report-table code {
+	font-size: 0.875em;
+}
+
+.woocommerce-MyAccount-content .pb-aff-report-empty {
+	font-style: italic;
+	color: #666;
+}
+
+.woocommerce-MyAccount-content .pb-aff-report-back {
+	margin-top: 1.5em;
+}
+
+.woocommerce-MyAccount-content .pb-aff-badge {
+	display: inline-block;
+	margin-left: 0.35em;
+	font-size: 0.75rem;
+	font-weight: 600;
+	line-height: 1.2;
+	padding: 0.15em 0.4em;
+	border-radius: 3px;
+	vertical-align: middle;
+}
+
+.woocommerce-MyAccount-content .pb-aff-badge--estimate {
+	background: #e8f4fc;
+	color: #0969a3;
+}
+
+.woocommerce-MyAccount-content .pb-aff-badge--pending {
+	background: #fff8e6;
+	color: #946200;
+}
+
+.woocommerce-MyAccount-content .pb-aff-badge--paid {
+	background: #e8f7ed;
+	color: #1e6b3a;
+}
+
+/* Gráfico de cliques + período */
+
+.woocommerce-MyAccount-content .pb-aff-chart-toolbar {
+	margin: 1em 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-chart-period label {
+	margin-right: 0.35em;
+	font-weight: 600;
+}
+
+.woocommerce-MyAccount-content .pb-aff-chart-period select {
+	max-width: 16rem;
+	vertical-align: middle;
+}
+
+.woocommerce-MyAccount-content .pb-aff-chart-wrap {
+	position: relative;
+	max-width: 100%;
+	margin: 0.5rem 0 1.5rem;
+	padding: 0.75rem 0.25rem;
+	background: #fafafa;
+	border: 1px solid #e0e0e0;
+	border-radius: 4px;
+}
+
+.woocommerce-MyAccount-content .pb-aff-chart-wrap canvas {
+	max-height: 280px;
+}
+
+/* Paginação tabelas */
+
+.woocommerce-MyAccount-content .pb-aff-pagination {
+	margin: 1em 0 1.75em;
+}
+
+.woocommerce-MyAccount-content .pb-aff-pagination__meta {
+	margin: 0 0 0.5em;
+	font-size: 0.9em;
+	color: #444;
+}
+
+.woocommerce-MyAccount-content .pb-aff-pagination__links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	align-items: center;
+}
+
+/* Materiais promocionais */
+
+.woocommerce-MyAccount-content .pb-aff-promo-materials-list {
+	list-style: none;
+	margin: 0 0 1.75rem;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-promo-materials-list__item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 0.75rem 1rem;
+	padding: 1rem;
+	background: #fafafa;
+	border: 1px solid #e0e0e0;
+	border-radius: 8px;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-promo-materials-list__body {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1rem;
+	min-width: 0;
+	flex: 1 1 12rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-promo-materials-list__thumb img {
+	display: block;
+	width: 120px;
+	height: auto;
+	max-height: 120px;
+	object-fit: contain;
+	border-radius: 4px;
+	border: 1px solid #ddd;
+	background: #fff;
+}
+
+.woocommerce-MyAccount-content .pb-aff-promo-materials-list__meta {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-promo-materials-list__date {
+	font-size: 0.9em;
+	color: #555;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-hero__actions .button + .button {
+	margin-left: 0.5rem;
+}

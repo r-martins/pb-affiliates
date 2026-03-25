@@ -1,0 +1,138 @@
+/* <ul> não pode ficar dentro de <p> — o markup usa <div> para o row (ver PB_Affiliates_Bank_Combo). */
+.pb-aff-bank-form-row,
+.pb-aff-bank-admin-row {
+	overflow: visible;
+}
+
+.pb-aff-bank-field {
+	display: block;
+	position: relative;
+	max-width: 100%;
+	overflow: visible;
+}
+
+.pb-aff-bank-field .pb-aff-bank-search {
+	width: 100%;
+}
+
+.pb-aff-bank-dropdown {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 100%;
+	z-index: 100000;
+	margin: 2px 0 0;
+	padding: 0;
+	list-style: none;
+	box-sizing: border-box;
+	max-height: 16rem;
+	overflow-y: auto;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 2px;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Escopado: evita regras em qualquer .woocommerce (checkout, carrinho, loja). */
+.woocommerce-MyAccount-content .pb-aff-bank-dropdown,
+body.user-edit-php .pb-aff-bank-dropdown,
+body.profile-php .pb-aff-bank-dropdown,
+#woocommerce-coupon-data .pb-aff-bank-dropdown {
+	border-color: var(--wc-form-border-color, #c3c4c7);
+}
+
+.pb-aff-bank-dropdown[hidden] {
+	display: none !important;
+}
+
+.pb-aff-bank-dropdown li {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.pb-aff-bank-option {
+	display: block;
+	width: 100%;
+	padding: 0.5rem 0.65rem;
+	border: 0;
+	background: transparent;
+	text-align: left;
+	font: inherit;
+	cursor: pointer;
+	line-height: 1.35;
+	color: inherit;
+}
+
+.pb-aff-bank-option:hover,
+.pb-aff-bank-option:focus {
+	background: #f0f0f1;
+	outline: none;
+}
+
+.pb-aff-bank-option.is-active {
+	background: #2271b1;
+	color: #fff;
+}
+
+.pb-aff-bank-option mark {
+	background: transparent;
+	font-weight: 600;
+}
+
+.pb-aff-bank-loading,
+.pb-aff-bank-msg {
+	padding: 0.5rem 0.65rem;
+	font-size: 0.9em;
+	color: #646970;
+}
+
+.pb-aff-bank-msg.is-error {
+	color: #b32d2e;
+}
+
+/* Combobox de afiliado no cupom — alinha com p.form-field (o core WC só define padding para <p>). */
+#woocommerce-coupon-data .woocommerce_options_panel .form-field._pb_affiliate_id_field,
+.post-type-shop_coupon .woocommerce_options_panel .form-field._pb_affiliate_id_field {
+	padding: 5px 20px 5px 162px !important;
+	margin: 9px 0;
+	font-size: 12px;
+	line-height: 24px;
+	overflow: visible;
+	box-sizing: border-box;
+}
+
+#woocommerce-coupon-data .woocommerce_options_panel .form-field._pb_affiliate_id_field::after,
+.post-type-shop_coupon .woocommerce_options_panel .form-field._pb_affiliate_id_field::after {
+	content: ".";
+	display: block;
+	height: 0;
+	clear: both;
+	visibility: hidden;
+}
+
+#woocommerce-coupon-data .woocommerce_options_panel .form-field._pb_affiliate_id_field .pb-aff-affiliate-coupon-field,
+.post-type-shop_coupon .woocommerce_options_panel .form-field._pb_affiliate_id_field .pb-aff-affiliate-coupon-field {
+	float: left;
+	width: 50%;
+	max-width: none;
+}
+
+#woocommerce-coupon-data .woocommerce_options_panel .form-field._pb_affiliate_id_field .pb-aff-coupon-affiliate-search.short,
+.post-type-shop_coupon .woocommerce_options_panel .form-field._pb_affiliate_id_field .pb-aff-coupon-affiliate-search.short {
+	width: 100%;
+	max-width: none;
+}
+
+@media only screen and (max-width: 500px) {
+	#woocommerce-coupon-data .woocommerce_options_panel .form-field._pb_affiliate_id_field,
+	.post-type-shop_coupon .woocommerce_options_panel .form-field._pb_affiliate_id_field {
+		padding: 5px 20px !important;
+	}
+
+	#woocommerce-coupon-data .woocommerce_options_panel .form-field._pb_affiliate_id_field .pb-aff-affiliate-coupon-field,
+	.post-type-shop_coupon .woocommerce_options_panel .form-field._pb_affiliate_id_field .pb-aff-affiliate-coupon-field {
+		float: none;
+		width: 100%;
+	}
+}
