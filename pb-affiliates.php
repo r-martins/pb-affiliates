@@ -3,8 +3,8 @@
  * Plugin Name:       PB Afiliados
  * Plugin URI:        https://pbintegracoes.com/
  * Description:       Programa de afiliados para WooCommerce com integração PagBank Connect. Exige PagBank Connect ativo com pelo menos um método de pagamento disponível.
- * Version:           1.0.24
- * Requires at least: 5.2
+ * Version:           1.0.0
+ * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Ricardo Martins
  * License:           GPL-3.0
@@ -18,7 +18,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PB_AFFILIATES_VERSION', '1.0.24' );
+define( 'PB_AFFILIATES_VERSION', '1.0.0' );
 define( 'PB_AFFILIATES_FILE', __FILE__ );
 define( 'PB_AFFILIATES_PATH', plugin_dir_path( __FILE__ ) );
 define( 'PB_AFFILIATES_URL', plugin_dir_url( __FILE__ ) );
@@ -51,6 +51,20 @@ function pb_affiliates_boot() {
 
 	PB_Affiliates_Install::maybe_upgrade();
 	PB_Affiliates::instance();
+	add_filter( 'plugin_action_links_' . PB_AFFILIATES_BASENAME, 'pb_affiliates_plugin_action_links' );
+}
+
+/**
+ * Plugin list row: settings and documentation (same pattern as PagBank Connect).
+ *
+ * @param array<string> $links Existing action links.
+ * @return array<string>
+ */
+function pb_affiliates_plugin_action_links( $links ) {
+	$plugin_links   = array();
+	$plugin_links[] = '<a href="' . esc_url( admin_url( 'admin.php?page=pb-affiliates-settings' ) ) . '">' . esc_html__( 'Configurações', 'pb-affiliates' ) . '</a>';
+	$plugin_links[] = '<a href="' . esc_url( 'https://ajuda.pbintegracoes.com/hc/pt-br/sections/44721017341069-PB-Afiliados' ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Documentação', 'pb-affiliates' ) . '</a>';
+	return array_merge( $plugin_links, $links );
 }
 
 /**

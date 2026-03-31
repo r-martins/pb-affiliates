@@ -122,7 +122,7 @@ class PB_Affiliates_Category_Commission {
 			return;
 		}
 		$type = isset( $_POST['pb_aff_cat_commission_type'] ) ? sanitize_key( wp_unslash( $_POST['pb_aff_cat_commission_type'] ) ) : '';
-		$val  = isset( $_POST['pb_aff_cat_commission_value'] ) ? wp_unslash( $_POST['pb_aff_cat_commission_value'] ) : '';
+		$val  = isset( $_POST['pb_aff_cat_commission_value'] ) ? sanitize_text_field( wp_unslash( $_POST['pb_aff_cat_commission_value'] ) ) : '';
 		$val  = (float) wc_format_decimal( is_string( $val ) ? $val : '' );
 		if ( ! in_array( $type, array( 'percent', 'fixed' ), true ) ) {
 			return;

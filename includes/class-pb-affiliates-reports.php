@@ -67,7 +67,8 @@ class PB_Affiliates_Reports {
 				COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END),0) AS paid_total,
 				COALESCE(SUM(CASE WHEN status = 'pending' AND ( payment_method IS NULL OR payment_method = '' OR payment_method = 'manual' ) THEN 1 ELSE 0 END),0) AS pending_count,
 				COALESCE(SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END),0) AS paid_count
-				FROM {$table} WHERE affiliate_id = %d",
+				FROM %i WHERE affiliate_id = %d",
+				$table,
 				$user_id
 			)
 		);
@@ -94,9 +95,15 @@ class PB_Affiliates_Reports {
 		global $wpdb;
 		$table        = $wpdb->prefix . 'pagbank_affiliate_commissions';
 		$placeholders = implode( ',', array_fill( 0, count( $user_ids ), '%d' ) );
-		$sql          = "SELECT affiliate_id, COUNT(*) AS order_count, COALESCE(SUM(commission_amount), 0) AS commission_total FROM `{$table}` WHERE affiliate_id IN ({$placeholders}) GROUP BY affiliate_id";
-		$prepared = $wpdb->prepare( $sql, $user_ids );
-		$rows     = $wpdb->get_results( $prepared, ARRAY_A );
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- IN list: only %d placeholders built from absint IDs.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT affiliate_id, COUNT(*) AS order_count, COALESCE(SUM(commission_amount), 0) AS commission_total FROM %i WHERE affiliate_id IN (' . $placeholders . ') GROUP BY affiliate_id',
+				...array_merge( array( $table ), $user_ids )
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 		foreach ( (array) $rows as $row ) {
 			$aid = (int) $row['affiliate_id'];
 			if ( isset( $defaults[ $aid ] ) ) {
@@ -108,8 +115,49 @@ class PB_Affiliates_Reports {
 	}
 
 	/**
-	 * Resumo do dashboard do afiliado: totais na tabela de comissões + estimativas para pedidos
-	 * atribuídos ainda pendentes de pagamento ou sem registro de comissão (ver
+	 * Indica se o afiliado tem comissões marcadas como pagas com paid_at no ano civil (horário do site).
+	 *
+	 * @param int      $user_id Affiliate user ID.
+	 * @param int|null $year    Ex.: 2026. null usa o ano atual em current_time.
+	 * @return bool
+	 */
+	public static function affiliate_has_paid_commissions_in_year( $user_id, $year = null ) {
+		global $wpdb;
+
+		$user_id = absint( $user_id );
+		if ( ! $user_id ) {
+			return false;
+		}
+		if ( null === $year ) {
+			$year = (int) current_time( 'Y' );
+		} else {
+			$year = (int) $year;
+		}
+		if ( $year < 1970 || $year > 2100 ) {
+			return false;
+		}
+
+		$table = $wpdb->prefix . 'pagbank_affiliate_commissions';
+		$start = sprintf( '%04d-01-01 00:00:00', $year );
+		$end   = sprintf( '%04d-12-31 23:59:59', $year );
+
+		$n = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM %i WHERE affiliate_id = %d AND status = %s AND paid_at IS NOT NULL AND paid_at >= %s AND paid_at <= %s',
+				$table,
+				$user_id,
+				'paid',
+				$start,
+				$end
+			)
+		);
+
+		return $n > 0;
+	}
+
+	/**
+	 * Resumo do dashboard do afiliado: totais na tabela de comissões + prévia para pedidos
+	 * pendentes (atribuídos ainda sem registro de comissão na loja; ver
 	 * {@see PB_Affiliates_Commission::create_commission_for_order}).
 	 *
 	 * @param int $user_id Affiliate user ID.
@@ -142,11 +190,11 @@ class PB_Affiliates_Reports {
 		}
 
 		$table     = $wpdb->prefix . 'pagbank_affiliate_commissions';
-		$order_ids = $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$table} WHERE affiliate_id = %d", $user_id ) );
+		$order_ids = $wpdb->get_col( $wpdb->prepare( 'SELECT order_id FROM %i WHERE affiliate_id = %d', $table, $user_id ) );
 		$have_row  = array_fill_keys( array_map( 'absint', (array) $order_ids ), true );
 
 		/**
-		 * Máximo de pedidos atribuídos a analisar ao somar estimativas (evita sobrecarga).
+		 * Máximo de pedidos atribuídos a analisar ao somar prévia de pedidos pendentes (evita sobrecarga).
 		 *
 		 * @param int $max Max orders (default 2000, capped 50–20000).
 		 */
@@ -212,12 +260,24 @@ class PB_Affiliates_Reports {
 		global $wpdb;
 		$table  = $wpdb->prefix . 'pagbank_affiliate_commissions';
 		$clause = self::admin_commissions_where_clause( $filters );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- WHERE só com placeholders + coluna prefixada.
-		$sql = "SELECT COUNT(*) AS cnt, COALESCE(SUM(c.commission_amount),0) AS total FROM `{$table}` c WHERE {$clause['sql']}";
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- WHERE from admin_commissions_where_clause; fragments are placeholders only.
 		if ( ! empty( $clause['values'] ) ) {
-			return $wpdb->get_row( $wpdb->prepare( $sql, $clause['values'] ) );
+			$row = $wpdb->get_row(
+				$wpdb->prepare(
+					'SELECT COUNT(*) AS cnt, COALESCE(SUM(c.commission_amount),0) AS total FROM %i c WHERE ' . $clause['sql'],
+					...array_merge( array( $table ), $clause['values'] )
+				)
+			);
+		} else {
+			$row = $wpdb->get_row(
+				$wpdb->prepare(
+					'SELECT COUNT(*) AS cnt, COALESCE(SUM(c.commission_amount),0) AS total FROM %i c WHERE ' . $clause['sql'],
+					$table
+				)
+			);
 		}
-		return $wpdb->get_row( $sql );
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
+		return $row;
 	}
 
 	/**
@@ -320,7 +380,7 @@ class PB_Affiliates_Reports {
 		$table = $wpdb->prefix . 'pagbank_affiliate_commissions';
 		$limit = max( 10, min( 2000, (int) $limit ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$ids = $wpdb->get_col( "SELECT DISTINCT affiliate_id FROM `{$table}` WHERE affiliate_id > 0 ORDER BY affiliate_id ASC LIMIT {$limit}" );
+		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT affiliate_id FROM %i WHERE affiliate_id > 0 ORDER BY affiliate_id ASC LIMIT %d', $table, $limit ) );
 		$out = array();
 		foreach ( (array) $ids as $id ) {
 			$id = (int) $id;
@@ -360,13 +420,24 @@ class PB_Affiliates_Reports {
 		$orderby    = in_array( $orderby, $allowed_ob, true ) ? $orderby : 'id';
 		$order      = ( 'asc' === strtolower( (string) $order ) ) ? 'ASC' : 'DESC';
 
-		$clause      = self::admin_commissions_where_clause( $filters );
-		$where_sql   = $clause['sql'];
-		$where_vals  = $clause['values'];
-		$count_base  = "SELECT COUNT(*) FROM `{$table}` c WHERE {$where_sql}";
-		$total       = ! empty( $where_vals )
-			? (int) $wpdb->get_var( $wpdb->prepare( $count_base, $where_vals ) )
-			: (int) $wpdb->get_var( $count_base );
+		$clause     = self::admin_commissions_where_clause( $filters );
+		$where_sql  = $clause['sql'];
+		$where_vals = $clause['values'];
+		// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- WHERE from admin_commissions_where_clause; fragments are placeholders only.
+		$total = ! empty( $where_vals )
+			? (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM %i c WHERE ' . $where_sql,
+					...array_merge( array( $table ), $where_vals )
+				)
+			)
+			: (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(*) FROM %i c WHERE ' . $where_sql,
+					$table
+				)
+			);
+		// phpcs:enable WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 
 		$total_pages = max( 1, (int) ceil( $total / $per_page ) );
 		$page        = min( $page, $total_pages );
@@ -388,19 +459,20 @@ class PB_Affiliates_Reports {
 			$order_sql = $ob_col . ' ' . $order . ', c.id DESC';
 		}
 
-		$data_sql = "SELECT c.*, u.display_name AS affiliate_display_name
-			FROM `{$table}` c
-			LEFT JOIN `{$users}` u ON u.ID = c.affiliate_id
-			WHERE {$where_sql}
-			ORDER BY {$order_sql}
-			LIMIT %d OFFSET %d";
-
-		$prepare_args = array_merge( $where_vals, array( $per_page, $offset ) );
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ORDER BY whitelist; WHERE usa placeholders.
-		$query = $wpdb->prepare( $data_sql, $prepare_args );
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-
-		$rows = $wpdb->get_results( $query, ARRAY_A );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- ORDER BY from whitelist; WHERE uses placeholders.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT c.*, u.display_name AS affiliate_display_name
+			FROM %i c
+			LEFT JOIN %i u ON u.ID = c.affiliate_id
+			WHERE ' . $where_sql . '
+			ORDER BY ' . $order_sql . '
+			LIMIT %d OFFSET %d',
+				...array_merge( array( $table, $users ), $where_vals, array( $per_page, $offset ) )
+			),
+			ARRAY_A
+		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$norm = self::normalize_admin_commissions_filters( $filters );
 
 		return array(
@@ -440,28 +512,6 @@ class PB_Affiliates_Reports {
 			'via'          => sanitize_key( (string) $filters['via'] ),
 			'date_from'    => self::sanitize_admin_date_ymd( $filters['date_from'] ),
 			'date_to'      => self::sanitize_admin_date_ymd( $filters['date_to'] ),
-		);
-	}
-
-	/**
-	 * Lê filtros GET da tela admin Pedidos.
-	 *
-	 * @return array<string, int|string>
-	 */
-	public static function get_admin_orders_report_filters_from_request() {
-		if ( empty( $_GET['pb_aff_ord_f'] ) || ! is_array( $_GET['pb_aff_ord_f'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-			return self::normalize_admin_commissions_filters( array() );
-		}
-		$raw = wp_unslash( $_GET['pb_aff_ord_f'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		return self::normalize_admin_commissions_filters(
-			array(
-				'affiliate_id' => isset( $raw['affiliate_id'] ) ? $raw['affiliate_id'] : 0,
-				'order_id'     => isset( $raw['order_id'] ) ? $raw['order_id'] : 0,
-				'status'       => isset( $raw['status'] ) ? $raw['status'] : '',
-				'via'          => isset( $raw['via'] ) ? $raw['via'] : '',
-				'date_from'    => isset( $raw['date_from'] ) ? $raw['date_from'] : '',
-				'date_to'      => isset( $raw['date_to'] ) ? $raw['date_to'] : '',
-			)
 		);
 	}
 
@@ -528,26 +578,27 @@ class PB_Affiliates_Reports {
 			$now_gmt = gmdate( 'Y-m-d H:i:s' );
 		}
 
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$query = $wpdb->prepare(
-			"SELECT c.affiliate_id,
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT c.affiliate_id,
 				COUNT(*) AS pending_count,
 				COALESCE(SUM(c.commission_amount), 0) AS pending_total,
 				MAX(u.display_name) AS display_name,
 				MAX(u.user_email) AS user_email
-			FROM `{$table}` c
-			LEFT JOIN `{$users}` u ON u.ID = c.affiliate_id
-			WHERE c.status = 'pending'
-			AND ( c.payment_method IS NULL OR c.payment_method = '' OR c.payment_method = 'manual' )
+			FROM %i c
+			LEFT JOIN %i u ON u.ID = c.affiliate_id
+			WHERE c.status = \'pending\'
+			AND ( c.payment_method IS NULL OR c.payment_method = \'\' OR c.payment_method = \'manual\' )
 			AND ( c.available_at IS NULL OR c.available_at <= %s )
 			GROUP BY c.affiliate_id
 			HAVING pending_total > 0
-			ORDER BY pending_total DESC",
-			$now_gmt
+			ORDER BY pending_total DESC',
+				$table,
+				$users,
+				$now_gmt
+			),
+			ARRAY_A
 		);
-		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-
-		$rows = $wpdb->get_results( $query, ARRAY_A );
 		return is_array( $rows ) ? $rows : array();
 	}
 
@@ -567,7 +618,8 @@ class PB_Affiliates_Reports {
 		$ctable = $wpdb->prefix . 'pagbank_affiliate_commissions';
 		$pending = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT affiliate_id, commission_ids_json FROM {$wtable} WHERE status = %s",
+				'SELECT affiliate_id, commission_ids_json FROM %i WHERE status = %s',
+				$wtable,
 				'pending'
 			),
 			ARRAY_A
@@ -598,16 +650,15 @@ class PB_Affiliates_Reports {
 			if ( empty( $ids ) ) {
 				continue;
 			}
-			$ph      = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
-			$prepare = array_merge( array( $aid ), $ids, array( 'pending', 'manual', $now_gmt ) );
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders built from absint list.
+			$ph = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber,WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- IN placeholders match absint commission IDs; one unpack only (PHP disallows args after ...).
 			$stat = $wpdb->get_row(
 				$wpdb->prepare(
-					"SELECT COALESCE(SUM(commission_amount), 0) AS s, COUNT(*) AS c FROM {$ctable}
+					"SELECT COALESCE(SUM(commission_amount), 0) AS s, COUNT(*) AS c FROM %i
 					WHERE affiliate_id = %d AND id IN ({$ph}) AND status = %s
 					AND ( payment_method IS NULL OR payment_method = '' OR payment_method = %s )
 					AND ( available_at IS NULL OR available_at <= %s )",
-					$prepare
+					...array_merge( array( $ctable, $aid ), array_values( $ids ), array( 'pending', 'manual', $now_gmt ) )
 				),
 				ARRAY_A
 			);
@@ -659,35 +710,13 @@ class PB_Affiliates_Reports {
 	public static function count_clicks_since( $user_id, $since ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'pagbank_affiliate_click_log';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from prefix.
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE affiliate_id = %d AND hit_at >= %s",
+				'SELECT COUNT(*) FROM %i WHERE affiliate_id = %d AND hit_at >= %s',
+				$table,
 				(int) $user_id,
 				$since
 			)
-		);
-	}
-
-	/**
-	 * Últimos eventos de clique/referência.
-	 *
-	 * @param int $user_id Affiliate ID.
-	 * @param int $limit   Max rows.
-	 * @return array<int, array{hit_at:string, via:string, client_ip?:string, visited_url?:string}>
-	 */
-	public static function get_recent_clicks( $user_id, $limit = 30 ) {
-		global $wpdb;
-		$table = $wpdb->prefix . 'pagbank_affiliate_click_log';
-		$limit = max( 1, min( 100, (int) $limit ) );
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from prefix.
-		return $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT hit_at, via, client_ip, visited_url FROM {$table} WHERE affiliate_id = %d ORDER BY id DESC LIMIT %d",
-				(int) $user_id,
-				$limit
-			),
-			ARRAY_A
 		);
 	}
 
@@ -700,10 +729,10 @@ class PB_Affiliates_Reports {
 	public static function count_clicks_for_affiliate( $user_id ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'pagbank_affiliate_click_log';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from prefix.
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE affiliate_id = %d",
+				'SELECT COUNT(*) FROM %i WHERE affiliate_id = %d',
+				$table,
 				(int) $user_id
 			)
 		);
@@ -723,10 +752,10 @@ class PB_Affiliates_Reports {
 		$per_page = max( 1, min( 50, (int) $per_page ) );
 		$page     = max( 1, (int) $page );
 		$offset   = ( $page - 1 ) * $per_page;
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from prefix.
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT hit_at, via, client_ip, visited_url FROM {$table} WHERE affiliate_id = %d ORDER BY id DESC LIMIT %d OFFSET %d",
+				'SELECT hit_at, via, client_ip, visited_url FROM %i WHERE affiliate_id = %d ORDER BY id DESC LIMIT %d OFFSET %d',
+				$table,
 				(int) $user_id,
 				$per_page,
 				$offset
@@ -835,27 +864,159 @@ class PB_Affiliates_Reports {
 	}
 
 	/**
-	 * Pedidos WooCommerce atribuídos ao afiliado (qualquer estado).
+	 * Soma de cliques no intervalo [start, end) — fuso do site.
 	 *
-	 * @param int $user_id Affiliate ID.
-	 * @param int $limit   Max orders.
-	 * @return WC_Order[]
+	 * @param int                 $user_id Affiliate ID.
+	 * @param \DateTimeImmutable $start   Início inclusivo.
+	 * @param \DateTimeImmutable $end     Fim exclusivo.
+	 * @return int
 	 */
-	public static function get_affiliate_orders( $user_id, $limit = 50 ) {
-		if ( ! function_exists( 'wc_get_orders' ) ) {
-			return array();
+	private static function count_clicks_in_datetime_range( $user_id, $start, $end ) {
+		$user_id = (int) $user_id;
+		if ( $user_id <= 0 ) {
+			return 0;
 		}
-		$limit = max( 1, min( 100, (int) $limit ) );
-		return wc_get_orders(
-			array(
-				'limit'        => $limit,
-				'orderby'      => 'date',
-				'order'        => 'DESC',
-				'meta_query'   => array(
-					self::wc_meta_affiliate_is_user( $user_id ),
-				),
-				'return'       => 'objects',
+		$rows = self::get_admin_click_counts_by_day(
+			$start->format( 'Y-m-d H:i:s' ),
+			$end->format( 'Y-m-d H:i:s' ),
+			$user_id
+		);
+		$n = 0;
+		foreach ( (array) $rows as $c ) {
+			$n += (int) $c;
+		}
+		return $n;
+	}
+
+	/**
+	 * Soma de pedidos atribuídos no intervalo [start, end).
+	 *
+	 * @param int                 $user_id Affiliate ID.
+	 * @param \DateTimeImmutable $start   Início inclusivo.
+	 * @param \DateTimeImmutable $end     Fim exclusivo.
+	 * @return int
+	 */
+	private static function count_attributed_orders_in_datetime_range( $user_id, $start, $end ) {
+		$daily = self::get_affiliate_order_counts_by_day_for_range( (int) $user_id, $start, $end );
+		$n     = 0;
+		foreach ( (array) $daily as $c ) {
+			$n += (int) $c;
+		}
+		return $n;
+	}
+
+	/**
+	 * Soma de comissões registradas (linhas na tabela) no intervalo [start, end).
+	 *
+	 * @param int                 $user_id Affiliate ID.
+	 * @param \DateTimeImmutable $start   Início inclusivo.
+	 * @param \DateTimeImmutable $end     Fim exclusivo.
+	 * @return float
+	 */
+	private static function sum_registered_commissions_in_datetime_range( $user_id, $start, $end ) {
+		global $wpdb;
+		$user_id = (int) $user_id;
+		if ( $user_id <= 0 ) {
+			return 0.0;
+		}
+		$table = $wpdb->prefix . 'pagbank_affiliate_commissions';
+		$val = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COALESCE(SUM(commission_amount), 0) FROM %i WHERE affiliate_id = %d AND created_at >= %s AND created_at < %s',
+				$table,
+				$user_id,
+				$start->format( 'Y-m-d H:i:s' ),
+				$end->format( 'Y-m-d H:i:s' )
 			)
+		);
+		return (float) $val;
+	}
+
+	/**
+	 * Variação percentual vs período anterior (null = sem base de comparação).
+	 *
+	 * @param float $current  Valor atual.
+	 * @param float $previous Valor no período anterior.
+	 * @return float|null
+	 */
+	private static function period_delta_percent( $current, $previous ) {
+		$current  = (float) $current;
+		$previous = (float) $previous;
+		if ( $previous <= 0 && $current <= 0 ) {
+			return null;
+		}
+		if ( $previous <= 0 ) {
+			return null;
+		}
+		return round( ( ( $current - $previous ) / $previous ) * 100, 1 );
+	}
+
+	/**
+	 * Métricas do painel para N dias + período anterior (comparação).
+
+	 * @param int $user_id Affiliate user ID.
+	 * @param int $days    7, 14, 30 ou 90.
+	 * @return array{
+	 *   days: int,
+	 *   range_label: string,
+	 *   range_heading: string,
+	 *   current: array{clicks: int, orders: int, commission: float},
+	 *   previous: array{clicks: int, orders: int, commission: float},
+	 *   delta_pct: array{clicks: ?float, orders: ?float, commission: ?float}
+	 * }
+	 */
+	public static function get_affiliate_dashboard_period_bundle( $user_id, $days ) {
+		$allowed = array( 7, 14, 30, 90 );
+		$days    = (int) $days;
+		if ( ! in_array( $days, $allowed, true ) ) {
+			$days = 30;
+		}
+		$user_id = (int) $user_id;
+		$end_excl = current_datetime()->setTime( 0, 0, 0 )->modify( '+1 day' );
+		$start_incl = $end_excl->modify( '-' . $days . ' days' );
+		$prev_end_excl = $start_incl;
+		$prev_start_incl = $start_incl->modify( '-' . $days . ' days' );
+
+		$cur_clicks = self::count_clicks_in_datetime_range( $user_id, $start_incl, $end_excl );
+		$cur_orders = self::count_attributed_orders_in_datetime_range( $user_id, $start_incl, $end_excl );
+		$cur_comm   = self::sum_registered_commissions_in_datetime_range( $user_id, $start_incl, $end_excl );
+
+		$prev_clicks = self::count_clicks_in_datetime_range( $user_id, $prev_start_incl, $prev_end_excl );
+		$prev_orders = self::count_attributed_orders_in_datetime_range( $user_id, $prev_start_incl, $prev_end_excl );
+		$prev_comm   = self::sum_registered_commissions_in_datetime_range( $user_id, $prev_start_incl, $prev_end_excl );
+
+		$last_day_ts = $end_excl->modify( '-1 day' )->getTimestamp();
+		$range_label = sprintf(
+			'%s – %s',
+			wp_date( get_option( 'date_format' ), $start_incl->getTimestamp() ),
+			wp_date( get_option( 'date_format' ), $last_day_ts )
+		);
+		$range_heading = sprintf(
+			/* translators: 1: number of days, 2: localized date range */
+			__( 'Últimos %1$d dias · %2$s', 'pb-affiliates' ),
+			$days,
+			$range_label
+		);
+
+		return array(
+			'days'           => $days,
+			'range_label'    => $range_label,
+			'range_heading'  => $range_heading,
+			'current'        => array(
+				'clicks'     => (int) $cur_clicks,
+				'orders'     => (int) $cur_orders,
+				'commission' => (float) $cur_comm,
+			),
+			'previous'       => array(
+				'clicks'     => (int) $prev_clicks,
+				'orders'     => (int) $prev_orders,
+				'commission' => (float) $prev_comm,
+			),
+			'delta_pct'      => array(
+				'clicks'     => self::period_delta_percent( $cur_clicks, $prev_clicks ),
+				'orders'     => self::period_delta_percent( $cur_orders, $prev_orders ),
+				'commission' => self::period_delta_percent( $cur_comm, $prev_comm ),
+			),
 		);
 	}
 
@@ -1084,9 +1245,13 @@ class PB_Affiliates_Reports {
 			$wheres[] = 'hit_at < %s';
 			$params[] = $to_excl;
 		}
-		$sql = "SELECT COUNT(*) FROM {$table} WHERE " . implode( ' AND ', $wheres ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared — table name.
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- placeholders match $params.
-		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- WHERE clauses are only %s/%d placeholders; values bound below.
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM %i WHERE ' . implode( ' AND ', $wheres ),
+				...array_merge( array( $table ), $params )
+			)
+		);
 	}
 
 	/**
@@ -1148,14 +1313,17 @@ class PB_Affiliates_Reports {
 		}
 		$dir = 'ASC' === strtoupper( (string) $args['order'] ) ? 'ASC' : 'DESC';
 
-		$sql = "SELECT id, hit_at, via, client_ip, visited_url FROM {$table} WHERE " . implode( ' AND ', $wheres )
-			. ' ORDER BY ' . $col . ' ' . $dir . ' LIMIT %d OFFSET %d'; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $col whitelisted.
-
 		$params[] = $per_page;
 		$params[] = $offset;
 
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		return $wpdb->get_results( $wpdb->prepare( $sql, $params ), ARRAY_A );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- ORDER BY column/dir from allowlist; WHERE uses placeholders only.
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, hit_at, via, client_ip, visited_url FROM %i WHERE ' . implode( ' AND ', $wheres ) . ' ORDER BY ' . $col . ' ' . $dir . ' LIMIT %d OFFSET %d',
+				...array_merge( array( $table ), $params )
+			),
+			ARRAY_A
+		);
 	}
 
 	/**
@@ -1168,10 +1336,10 @@ class PB_Affiliates_Reports {
 	public static function get_commission_row_for_order( $order_id, $affiliate_id ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'pagbank_affiliate_commissions';
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from prefix.
 		return $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT commission_amount, status FROM {$table} WHERE order_id = %d AND affiliate_id = %d LIMIT 1",
+				'SELECT commission_amount, status FROM %i WHERE order_id = %d AND affiliate_id = %d LIMIT 1',
+				$table,
 				(int) $order_id,
 				(int) $affiliate_id
 			)
@@ -1542,15 +1710,23 @@ class PB_Affiliates_Reports {
 		global $wpdb;
 		$table        = $wpdb->prefix . 'pagbank_affiliate_commissions';
 		$placeholders = implode( ',', array_fill( 0, count( $order_ids ), '%d' ) );
-		$sql          = "SELECT COALESCE(SUM(commission_amount), 0) FROM `{$table}` WHERE order_id IN ({$placeholders}) AND status = 'pending' AND ( payment_method IS NULL OR payment_method = '' OR payment_method = 'manual' )";
-		$params       = $order_ids;
 		$affiliate_id = (int) $affiliate_id;
 		if ( $affiliate_id > 0 ) {
-			$sql     .= ' AND affiliate_id = %d';
-			$params[] = $affiliate_id;
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- IN list: only %d placeholders from absint order IDs.
+			return (float) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COALESCE(SUM(commission_amount), 0) FROM %i WHERE order_id IN (' . $placeholders . ") AND status = 'pending' AND ( payment_method IS NULL OR payment_method = '' OR payment_method = 'manual' ) AND affiliate_id = %d",
+					...array_merge( array( $table ), $order_ids, array( $affiliate_id ) )
+				)
+			);
 		}
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- IN list built from counted placeholders.
-		return (float) $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- IN list: only %d placeholders from absint order IDs.
+		return (float) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COALESCE(SUM(commission_amount), 0) FROM %i WHERE order_id IN (' . $placeholders . ") AND status = 'pending' AND ( payment_method IS NULL OR payment_method = '' OR payment_method = 'manual' )",
+				...array_merge( array( $table ), $order_ids )
+			)
+		);
 	}
 
 	/**
@@ -1632,24 +1808,24 @@ class PB_Affiliates_Reports {
 		global $wpdb;
 		$table = $wpdb->prefix . 'pagbank_affiliate_click_log';
 		if ( (int) $affiliate_id > 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT DATE(hit_at) as bucket, COUNT(*) as c FROM {$table}
+					'SELECT DATE(hit_at) as bucket, COUNT(*) as c FROM %i
 					WHERE hit_at >= %s AND hit_at < %s AND affiliate_id = %d
-					GROUP BY DATE(hit_at)",
+					GROUP BY DATE(hit_at)',
+					$table,
 					$start_inclusive,
 					$end_exclusive,
 					(int) $affiliate_id
 				)
 			);
 		} else {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT DATE(hit_at) as bucket, COUNT(*) as c FROM {$table}
+					'SELECT DATE(hit_at) as bucket, COUNT(*) as c FROM %i
 					WHERE hit_at >= %s AND hit_at < %s
-					GROUP BY DATE(hit_at)",
+					GROUP BY DATE(hit_at)',
+					$table,
 					$start_inclusive,
 					$end_exclusive
 				)
@@ -1678,9 +1854,10 @@ class PB_Affiliates_Reports {
 		if ( (int) $affiliate_id > 0 ) {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT YEAR(hit_at) as y, MONTH(hit_at) as m, COUNT(*) as c FROM {$table}
+					'SELECT YEAR(hit_at) as y, MONTH(hit_at) as m, COUNT(*) as c FROM %i
 					WHERE hit_at >= %s AND hit_at < %s AND affiliate_id = %d
-					GROUP BY YEAR(hit_at), MONTH(hit_at)",
+					GROUP BY YEAR(hit_at), MONTH(hit_at)',
+					$table,
 					$start_inclusive,
 					$end_exclusive,
 					(int) $affiliate_id
@@ -1689,9 +1866,10 @@ class PB_Affiliates_Reports {
 		} else {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT YEAR(hit_at) as y, MONTH(hit_at) as m, COUNT(*) as c FROM {$table}
+					'SELECT YEAR(hit_at) as y, MONTH(hit_at) as m, COUNT(*) as c FROM %i
 					WHERE hit_at >= %s AND hit_at < %s
-					GROUP BY YEAR(hit_at), MONTH(hit_at)",
+					GROUP BY YEAR(hit_at), MONTH(hit_at)',
+					$table,
 					$start_inclusive,
 					$end_exclusive
 				)
@@ -1716,30 +1894,46 @@ class PB_Affiliates_Reports {
 	 */
 	public static function get_admin_clicks_grouped_by_via( $start_inclusive, $end_exclusive, $affiliate_id = 0, $orderby = 'count_desc' ) {
 		global $wpdb;
-		$table   = $wpdb->prefix . 'pagbank_affiliate_click_log';
-		$order_sql = 'via_asc' === $orderby ? 'via ASC' : 'cnt DESC';
+		$table        = $wpdb->prefix . 'pagbank_affiliate_click_log';
+		$affiliate_id = (int) $affiliate_id;
+		$via_asc      = 'via_asc' === $orderby;
 
-		if ( (int) $affiliate_id > 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- order_sql is whitelisted.
+		if ( $affiliate_id > 0 ) {
+			if ( $via_asc ) {
+				return $wpdb->get_results(
+					$wpdb->prepare(
+						'SELECT via AS via, COUNT(*) AS cnt FROM %i WHERE hit_at >= %s AND hit_at < %s AND affiliate_id = %d GROUP BY via ORDER BY via ASC',
+						$table,
+						$start_inclusive,
+						$end_exclusive,
+						$affiliate_id
+					)
+				);
+			}
 			return $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT via AS via, COUNT(*) AS cnt FROM {$table}
-					WHERE hit_at >= %s AND hit_at < %s AND affiliate_id = %d
-					GROUP BY via
-					ORDER BY {$order_sql}",
+					'SELECT via AS via, COUNT(*) AS cnt FROM %i WHERE hit_at >= %s AND hit_at < %s AND affiliate_id = %d GROUP BY via ORDER BY cnt DESC',
+					$table,
 					$start_inclusive,
 					$end_exclusive,
-					(int) $affiliate_id
+					$affiliate_id
 				)
 			);
 		}
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		if ( $via_asc ) {
+			return $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT via AS via, COUNT(*) AS cnt FROM %i WHERE hit_at >= %s AND hit_at < %s GROUP BY via ORDER BY via ASC',
+					$table,
+					$start_inclusive,
+					$end_exclusive
+				)
+			);
+		}
 		return $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT via AS via, COUNT(*) AS cnt FROM {$table}
-				WHERE hit_at >= %s AND hit_at < %s
-				GROUP BY via
-				ORDER BY {$order_sql}",
+				'SELECT via AS via, COUNT(*) AS cnt FROM %i WHERE hit_at >= %s AND hit_at < %s GROUP BY via ORDER BY cnt DESC',
+				$table,
 				$start_inclusive,
 				$end_exclusive
 			)
@@ -1758,24 +1952,24 @@ class PB_Affiliates_Reports {
 		global $wpdb;
 		$table = $wpdb->prefix . 'pagbank_affiliate_click_log';
 		if ( (int) $affiliate_id > 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table from prefix.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT referer_host AS h, COUNT(*) AS cnt FROM {$table}
+					'SELECT referer_host AS h, COUNT(*) AS cnt FROM %i
 					WHERE hit_at >= %s AND hit_at < %s AND affiliate_id = %d
-					GROUP BY referer_host",
+					GROUP BY referer_host',
+					$table,
 					$start_inclusive,
 					$end_exclusive,
 					(int) $affiliate_id
 				)
 			);
 		} else {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT referer_host AS h, COUNT(*) AS cnt FROM {$table}
+					'SELECT referer_host AS h, COUNT(*) AS cnt FROM %i
 					WHERE hit_at >= %s AND hit_at < %s
-					GROUP BY referer_host",
+					GROUP BY referer_host',
+					$table,
 					$start_inclusive,
 					$end_exclusive
 				)
@@ -1802,24 +1996,24 @@ class PB_Affiliates_Reports {
 		global $wpdb;
 		$table = $wpdb->prefix . 'pagbank_affiliate_click_log';
 		if ( (int) $affiliate_id > 0 ) {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table from prefix.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT affiliate_id AS aid, COUNT(*) AS cnt FROM {$table}
+					'SELECT affiliate_id AS aid, COUNT(*) AS cnt FROM %i
 					WHERE hit_at >= %s AND hit_at < %s AND affiliate_id = %d
-					GROUP BY affiliate_id",
+					GROUP BY affiliate_id',
+					$table,
 					$start_inclusive,
 					$end_exclusive,
 					(int) $affiliate_id
 				)
 			);
 		} else {
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT affiliate_id AS aid, COUNT(*) AS cnt FROM {$table}
+					'SELECT affiliate_id AS aid, COUNT(*) AS cnt FROM %i
 					WHERE hit_at >= %s AND hit_at < %s AND affiliate_id > 0
-					GROUP BY affiliate_id",
+					GROUP BY affiliate_id',
+					$table,
 					$start_inclusive,
 					$end_exclusive
 				)
@@ -1982,46 +2176,5 @@ class PB_Affiliates_Reports {
 		}
 
 		return $list;
-	}
-
-	/**
-	 * Conjunto para gráfico de bolhas: top N domínios (pedidos depois cliques).
-	 *
-	 * @param int    $start_ts            Timestamps WC (pedidos).
-	 * @param int    $end_ts              Idem.
-	 * @param string $start_sql_inclusive hit_at >=
-	 * @param string $end_sql_exclusive   hit_at <
-	 * @param int    $affiliate_id             0 = todos.
-	 * @param int    $max_domains              Máximo de bolhas (ex.: 15).
-	 * @param bool               $exclude_empty_referer Se true, omite o bucket de host vazio (sem cabeçalho Referer).
-	 * @param array<string>|null $order_statuses        Slugs para wc_get_orders; null = todos.
-	 * @return array<int, array{h:string, clicks:int, orders:int}>
-	 */
-	public static function get_admin_referer_domain_bubble_dataset( $start_ts, $end_ts, $start_sql_inclusive, $end_sql_exclusive, $affiliate_id = 0, $max_domains = 15, $exclude_empty_referer = false, $order_statuses = null ) {
-		$max_domains = max( 1, min( 25, (int) $max_domains ) );
-		$list        = self::get_admin_referer_domain_merged_rows( $start_ts, $end_ts, $start_sql_inclusive, $end_sql_exclusive, $affiliate_id, $exclude_empty_referer, $order_statuses );
-
-		usort(
-			$list,
-			static function ( $a, $b ) {
-				if ( $a['orders'] !== $b['orders'] ) {
-					return $b['orders'] <=> $a['orders'];
-				}
-				return $b['clicks'] <=> $a['clicks'];
-			}
-		);
-
-		$list = array_slice( $list, 0, $max_domains );
-
-		$rows = array();
-		foreach ( $list as $item ) {
-			$rows[] = array(
-				'h'      => $item['h'],
-				'clicks' => $item['clicks'],
-				'orders' => $item['orders'],
-			);
-		}
-
-		return $rows;
 	}
 }

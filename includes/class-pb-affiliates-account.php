@@ -14,6 +14,8 @@ class PB_Affiliates_Account {
 
 	const ENDPOINT = 'affiliate-area';
 
+	const ENDPOINT_LINKS = 'affiliate-links';
+
 	const ENDPOINT_REPORTS = 'affiliate-reports';
 
 	const ENDPOINT_MATERIALS = 'affiliate-materials';
@@ -29,9 +31,11 @@ class PB_Affiliates_Account {
 		// Prioridade 100: após WooCommerce e muitos temas (10–99), sem competir com tudo no 999.
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_account_styles' ), 100 );
 		add_action( 'woocommerce_account_' . self::ENDPOINT . '_endpoint', array( __CLASS__, 'render' ) );
+		add_action( 'woocommerce_account_' . self::ENDPOINT_LINKS . '_endpoint', array( __CLASS__, 'render_links' ) );
 		add_action( 'woocommerce_account_' . self::ENDPOINT_REPORTS . '_endpoint', array( __CLASS__, 'render_reports' ) );
 		add_action( 'woocommerce_account_' . self::ENDPOINT_MATERIALS . '_endpoint', array( __CLASS__, 'render_promo_materials' ) );
 		add_filter( 'woocommerce_account_menu_items', array( __CLASS__, 'account_menu_items' ), 20 );
+		add_filter( 'woocommerce_endpoint_' . self::ENDPOINT_LINKS . '_title', array( __CLASS__, 'affiliate_links_endpoint_title' ), 10, 3 );
 		add_filter( 'woocommerce_endpoint_' . self::ENDPOINT_MATERIALS . '_title', array( __CLASS__, 'promo_materials_endpoint_title' ), 10, 3 );
 		add_action( 'woocommerce_edit_account_form', array( __CLASS__, 'edit_account_payment_fields' ) );
 		add_action( 'woocommerce_save_account_details', array( __CLASS__, 'save_account_payment_fields' ), 10, 1 );
@@ -42,6 +46,7 @@ class PB_Affiliates_Account {
 	 */
 	public static function add_endpoint() {
 		add_rewrite_endpoint( self::ENDPOINT, EP_PAGES );
+		add_rewrite_endpoint( self::ENDPOINT_LINKS, EP_PAGES );
 		add_rewrite_endpoint( self::ENDPOINT_REPORTS, EP_PAGES );
 		add_rewrite_endpoint( self::ENDPOINT_MATERIALS, EP_PAGES );
 	}
@@ -56,7 +61,7 @@ class PB_Affiliates_Account {
 		if ( ! is_user_logged_in() ) {
 			return;
 		}
-		if ( ! self::is_affiliate_account_endpoint() && ! self::is_affiliate_reports_endpoint() && ! self::is_affiliate_materials_endpoint() ) {
+		if ( ! self::is_affiliate_account_endpoint() && ! self::is_affiliate_links_endpoint() && ! self::is_affiliate_reports_endpoint() && ! self::is_affiliate_materials_endpoint() ) {
 			return;
 		}
 		/**
@@ -78,7 +83,7 @@ class PB_Affiliates_Account {
 			PB_AFFILIATES_VERSION
 		);
 
-		if ( self::is_affiliate_reports_endpoint() ) {
+		if ( self::is_affiliate_reports_endpoint() || self::is_affiliate_account_endpoint() ) {
 			$chart_src = apply_filters(
 				'pb_affiliates_reports_chart_script',
 				'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js'
@@ -90,6 +95,77 @@ class PB_Affiliates_Account {
 				'4.4.1',
 				true
 			);
+		}
+
+		if ( self::is_affiliate_links_endpoint() ) {
+			$pb_lb_uid = get_current_user_id();
+			if ( $pb_lb_uid && PB_Affiliates_Role::user_is_affiliate( $pb_lb_uid ) ) {
+				$pb_lb_settings = PB_Affiliates_Settings::get();
+				$pb_lb_param    = sanitize_key( $pb_lb_settings['referral_param'] ?? 'pid' );
+				$pb_lb_code     = (string) get_user_meta( $pb_lb_uid, 'pb_affiliate_code', true );
+				$pb_lb_home     = home_url( '/' );
+				$pb_lb_host     = wp_parse_url( $pb_lb_home, PHP_URL_HOST );
+				$pb_lb_host     = is_string( $pb_lb_host ) ? strtolower( $pb_lb_host ) : '';
+
+				wp_enqueue_script(
+					'pb-aff-link-builder',
+					PB_AFFILIATES_URL . 'assets/js/account-link-builder.js',
+					array(),
+					PB_AFFILIATES_VERSION,
+					true
+				);
+				wp_localize_script(
+					'pb-aff-link-builder',
+					'pbAffLinkBuilder',
+					array(
+						'referralParam' => $pb_lb_param,
+						'affiliateCode' => $pb_lb_code,
+						'homeUrl'       => $pb_lb_home,
+						'siteHost'      => $pb_lb_host,
+						'i18n'          => array(
+							'needUrl'    => __( 'Cole um URL da loja.', 'pb-affiliates' ),
+							'notOurSite' => __( 'Use apenas endereços deste site.', 'pb-affiliates' ),
+							'invalidUrl' => __( 'URL inválido. Ex.: https://… ou um caminho que comece com /', 'pb-affiliates' ),
+							'copied'     => __( 'Copiado!', 'pb-affiliates' ),
+						),
+					)
+				);
+
+				if ( class_exists( 'PB_Affiliates_Zip1', false ) && PB_Affiliates_Zip1::is_enabled() ) {
+					$pb_zip1_long = add_query_arg( $pb_lb_param, rawurlencode( $pb_lb_code ), $pb_lb_home );
+					wp_enqueue_script(
+						'pb-aff-zip1',
+						PB_AFFILIATES_URL . 'assets/js/account-zip1.js',
+						array(),
+						PB_AFFILIATES_VERSION,
+						true
+					);
+					wp_localize_script(
+						'pb-aff-zip1',
+						'pbAffZip1',
+						array(
+							'createUrl'     => PB_Affiliates_Zip1::api_create_url(),
+							'longUrl'       => $pb_zip1_long,
+							'referralParam' => $pb_lb_param ? $pb_lb_param : 'pid',
+							'affiliateCode' => $pb_lb_code,
+							'i18n'          => array(
+								'busy'       => __( 'Gerando…', 'pb-affiliates' ),
+								'copy'       => __( 'Copiar link curto', 'pb-affiliates' ),
+								'copied'     => __( 'Copiado!', 'pb-affiliates' ),
+								'stats'      => __( 'Estatísticas no zip1.io', 'pb-affiliates' ),
+								'replace'    => __( 'Gerar outro link curto', 'pb-affiliates' ),
+								'err'        => __( 'Não foi possível gerar o link curto.', 'pb-affiliates' ),
+								'conflict'   => __( 'Este alias já está em uso no zip1.io. Escolha outro ou deixe em branco.', 'pb-affiliates' ),
+								'ratelimit'  => __( 'Limite de pedidos ao zip1.io. Aguarde um minuto e tente novamente.', 'pb-affiliates' ),
+								'badAlias'   => __( 'Alias inválido: use 3–16 caracteres (letras, números, hífens) ou um emoji curto.', 'pb-affiliates' ),
+								'noLongUrl'  => __( 'URL de indicação indisponível. Recarregue a página.', 'pb-affiliates' ),
+								'fallback'   => __( 'Não foi possível concluir. Tente novamente.', 'pb-affiliates' ),
+								'badLongUrl' => __( 'Indique um URL completo válido (https://…).', 'pb-affiliates' ),
+							),
+						)
+					);
+				}
+			}
 		}
 	}
 
@@ -104,6 +180,19 @@ class PB_Affiliates_Account {
 		}
 		global $wp;
 		return isset( $wp->query_vars[ self::ENDPOINT ] );
+	}
+
+	/**
+	 * Endpoint links (identificador + domínios).
+	 *
+	 * @return bool
+	 */
+	public static function is_affiliate_links_endpoint() {
+		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( self::ENDPOINT_LINKS ) ) {
+			return true;
+		}
+		global $wp;
+		return isset( $wp->query_vars[ self::ENDPOINT_LINKS ] );
 	}
 
 	/**
@@ -125,6 +214,7 @@ class PB_Affiliates_Account {
 	 */
 	public static function query_vars( $vars ) {
 		$vars[] = self::ENDPOINT;
+		$vars[] = self::ENDPOINT_LINKS;
 		$vars[] = self::ENDPOINT_REPORTS;
 		$vars[] = self::ENDPOINT_MATERIALS;
 		return $vars;
@@ -137,8 +227,9 @@ class PB_Affiliates_Account {
 	 * @return array
 	 */
 	public static function register_wc_query_vars( $query_vars ) {
-		$query_vars[ self::ENDPOINT ]          = self::ENDPOINT;
-		$query_vars[ self::ENDPOINT_REPORTS ]  = self::ENDPOINT_REPORTS;
+		$query_vars[ self::ENDPOINT ]           = self::ENDPOINT;
+		$query_vars[ self::ENDPOINT_LINKS ]     = self::ENDPOINT_LINKS;
+		$query_vars[ self::ENDPOINT_REPORTS ]   = self::ENDPOINT_REPORTS;
 		$query_vars[ self::ENDPOINT_MATERIALS ] = self::ENDPOINT_MATERIALS;
 		return $query_vars;
 	}
@@ -193,7 +284,19 @@ class PB_Affiliates_Account {
 	}
 
 	/**
-	 * Título da página do endpoint.
+	 * Título da página do endpoint links.
+	 *
+	 * @return string
+	 */
+	public static function affiliate_links_endpoint_title( $title, $endpoint, $action ) {
+		if ( '' !== (string) $title ) {
+			return (string) $title;
+		}
+		return __( 'Links de afiliados', 'pb-affiliates' );
+	}
+
+	/**
+	 * Título da página do endpoint materiais.
 	 *
 	 * @return string
 	 */
@@ -233,27 +336,79 @@ class PB_Affiliates_Account {
 			return;
 		}
 
-		$settings = PB_Affiliates_Settings::get();
-		$param    = sanitize_key( $settings['referral_param'] ?? 'pid' );
-		$code     = get_user_meta( $user_id, 'pb_affiliate_code', true );
-		$link     = add_query_arg( $param, rawurlencode( (string) $code ), home_url( '/' ) );
-
 		$summary                     = PB_Affiliates_Reports::get_affiliate_dashboard_totals( $user_id );
 		$commission_rate_description = PB_Affiliates_Commission::get_commission_rate_description_for_dashboard( $user_id );
-		$affiliate_domains           = get_user_meta( $user_id, PB_Affiliates_Domain_Verify::META, true );
 		$pb_aff_payment_mode         = PB_Affiliates_Settings::get()['payment_mode'] ?? 'manual';
 		$pb_aff_withdraw_balance     = PB_Affiliates_Withdrawal::get_available_balance( $user_id );
 		$pb_aff_withdraw_pending     = PB_Affiliates_Withdrawal::has_pending_request( $user_id );
 		$pb_aff_min_withdrawal       = (float) ( PB_Affiliates_Settings::get()['manual_min_withdrawal'] ?? 0 );
 		$pb_aff_paid_withdrawals     = PB_Affiliates_Withdrawal::get_paid_withdrawals_for_affiliate( $user_id, 50 );
+		$pb_aff_show_payments_received = true;
+		if ( 'split' === $pb_aff_payment_mode ) {
+			$pb_aff_show_payments_received = ! empty( $pb_aff_paid_withdrawals )
+				|| PB_Affiliates_Reports::affiliate_has_paid_commissions_in_year( $user_id, null );
+		}
+		$pb_aff_has_promo_materials   = PB_Affiliates_Promotional_Materials::has_displayable_materials();
+		$pb_aff_materials_url         = wc_get_account_endpoint_url( self::ENDPOINT_MATERIALS );
+		$pb_aff_pagbank_account_id    = (string) get_user_meta( $user_id, 'pb_affiliate_pagbank_account_id', true );
+		$pb_aff_split_receipt_ready   = self::affiliate_has_valid_split_pagbank_account( $user_id );
+		$pb_aff_bank_dashboard_lines  = self::get_bank_detail_lines_for_dashboard( $user_id );
+
+		$pb_dash_days = isset( $_GET['pb_dash'] ) ? absint( wp_unslash( $_GET['pb_dash'] ) ) : 30; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! in_array( $pb_dash_days, array( 7, 14, 30, 90 ), true ) ) {
+			$pb_dash_days = 30;
+		}
+		$pb_aff_period_bundle  = PB_Affiliates_Reports::get_affiliate_dashboard_period_bundle( $user_id, $pb_dash_days );
+		$pb_aff_dash_chart     = PB_Affiliates_Reports::get_affiliate_click_chart_series( $user_id, $pb_dash_days );
+		$pb_aff_clicks_alltime = PB_Affiliates_Reports::count_clicks_for_affiliate( $user_id );
+		$pb_aff_nav_active     = 'dashboard';
+
+		include PB_AFFILIATES_PATH . 'templates/my-account/affiliate-dashboard.php';
+	}
+
+	/**
+	 * Links de afiliado: identificador, URL de indicação, domínios de referência.
+	 */
+	public static function render_links() {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			echo '<p>' . esc_html__( 'É necessário estar logado.', 'pb-affiliates' ) . '</p>';
+			return;
+		}
+
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+		}
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
+
+		if ( PB_Affiliates_Role::user_is_pending_affiliate( $user_id ) ) {
+			include PB_AFFILIATES_PATH . 'templates/my-account/affiliate-pending.php';
+			return;
+		}
+
+		if ( ! PB_Affiliates_Role::user_is_affiliate( $user_id ) ) {
+			include PB_AFFILIATES_PATH . 'templates/my-account/affiliate-opt-in.php';
+			return;
+		}
+
+		$settings = PB_Affiliates_Settings::get();
+		$param    = sanitize_key( $settings['referral_param'] ?? 'pid' );
+		$code     = get_user_meta( $user_id, 'pb_affiliate_code', true );
+		$link     = add_query_arg( $param, rawurlencode( (string) $code ), home_url( '/' ) );
+
+		$affiliate_domains = get_user_meta( $user_id, PB_Affiliates_Domain_Verify::META, true );
 		if ( ! is_array( $affiliate_domains ) ) {
 			$affiliate_domains = array();
 		}
 
 		$pb_aff_has_promo_materials = PB_Affiliates_Promotional_Materials::has_displayable_materials();
 		$pb_aff_materials_url       = wc_get_account_endpoint_url( self::ENDPOINT_MATERIALS );
+		$pb_aff_nav_active          = 'links';
+		$pb_aff_zip1_enabled = PB_Affiliates_Zip1::is_enabled();
 
-		include PB_AFFILIATES_PATH . 'templates/my-account/affiliate-dashboard.php';
+		include PB_AFFILIATES_PATH . 'templates/my-account/affiliate-links.php';
 	}
 
 	/**
@@ -275,7 +430,10 @@ class PB_Affiliates_Account {
 			echo '<p>' . esc_html__( 'Materiais disponíveis apenas para afiliados ativos.', 'pb-affiliates' ) . '</p>';
 			return;
 		}
-		$pb_aff_promo_materials = PB_Affiliates_Promotional_Materials::get_items_for_affiliate_display();
+		$pb_aff_promo_materials      = PB_Affiliates_Promotional_Materials::get_items_for_affiliate_display();
+		$pb_aff_has_promo_materials  = true;
+		$pb_aff_materials_url        = wc_get_account_endpoint_url( self::ENDPOINT_MATERIALS );
+		$pb_aff_nav_active           = 'materials';
 		include PB_AFFILIATES_PATH . 'templates/my-account/affiliate-materials.php';
 	}
 
@@ -335,6 +493,10 @@ class PB_Affiliates_Account {
 		}
 		$orders = $orders_data['orders'];
 
+		$pb_aff_has_promo_materials = PB_Affiliates_Promotional_Materials::has_displayable_materials();
+		$pb_aff_materials_url       = wc_get_account_endpoint_url( self::ENDPOINT_MATERIALS );
+		$pb_aff_nav_active          = 'reports';
+
 		include PB_AFFILIATES_PATH . 'templates/my-account/affiliate-reports.php';
 	}
 
@@ -349,6 +511,61 @@ class PB_Affiliates_Account {
 			return false;
 		}
 		return PB_Affiliates_Role::user_is_affiliate( $user_id );
+	}
+
+	/**
+	 * Account ID PagBank no formato aceito pelo split de afiliados.
+	 *
+	 * @param int $user_id User ID.
+	 * @return bool
+	 */
+	public static function affiliate_has_valid_split_pagbank_account( $user_id ) {
+		$user_id = (int) $user_id;
+		if ( $user_id <= 0 ) {
+			return false;
+		}
+		$raw = (string) get_user_meta( $user_id, 'pb_affiliate_pagbank_account_id', true );
+		return class_exists( 'PB_Affiliates_Split', false ) && PB_Affiliates_Split::is_valid_account_id( $raw );
+	}
+
+	/**
+	 * Exibe CPF/CNPJ (só dígitos ou com máscara) de forma resumida no painel.
+	 *
+	 * @param string $stored Valor em user meta.
+	 * @return string
+	 */
+	public static function mask_tax_id_for_dashboard( $stored ) {
+		$digits = preg_replace( '/\D/', '', (string) $stored );
+		$len    = strlen( $digits );
+		if ( $len <= 4 ) {
+			return $digits;
+		}
+		return str_repeat( '•', $len - 4 ) . substr( $digits, -4 );
+	}
+
+	/**
+	 * Linhas de dados bancários para o painel (documento parcialmente mascarado).
+	 *
+	 * @param int $user_id User ID.
+	 * @return array<int, string>
+	 */
+	public static function get_bank_detail_lines_for_dashboard( $user_id ) {
+		$lines = PB_Affiliates_Withdrawal::get_bank_detail_lines( (int) $user_id );
+		$doc   = preg_replace( '/\D/', '', (string) get_user_meta( (int) $user_id, 'pb_affiliate_bank_document', true ) );
+		if ( '' === $doc ) {
+			return $lines;
+		}
+		foreach ( $lines as $i => $line ) {
+			if ( false !== strpos( $line, $doc ) ) {
+				$lines[ $i ] = sprintf(
+					/* translators: %s: masked tax id */
+					__( 'CPF/CNPJ: %s', 'pb-affiliates' ),
+					self::mask_tax_id_for_dashboard( $doc )
+				);
+				break;
+			}
+		}
+		return $lines;
 	}
 
 	/**
@@ -434,6 +651,9 @@ class PB_Affiliates_Account {
 		if ( ! self::user_can_edit_payment_fields( $user_id ) ) {
 			return;
 		}
+		if ( empty( $_POST['save-account-details-nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['save-account-details-nonce'] ) ), 'save_account_details' ) ) {
+			return;
+		}
 
 		$mode = PB_Affiliates_Settings::get()['payment_mode'] ?? 'manual';
 
@@ -464,11 +684,11 @@ class PB_Affiliates_Account {
 			if ( ! isset( $_POST[ $post_key ] ) ) {
 				continue;
 			}
-			$raw = wp_unslash( $_POST[ $post_key ] );
+			$raw = sanitize_text_field( wp_unslash( $_POST[ $post_key ] ) );
 			if ( 'pb_affiliate_bank_document' === $post_key ) {
 				update_user_meta( $user_id, $meta_key, self::sanitize_document_digits( $raw ) );
 			} else {
-				update_user_meta( $user_id, $meta_key, sanitize_text_field( $raw ) );
+				update_user_meta( $user_id, $meta_key, $raw );
 			}
 		}
 	}

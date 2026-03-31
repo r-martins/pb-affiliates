@@ -9,7 +9,11 @@
 defined( 'ABSPATH' ) || exit;
 
 $pb_aff_promo_materials = isset( $pb_aff_promo_materials ) && is_array( $pb_aff_promo_materials ) ? $pb_aff_promo_materials : array();
+$pb_aff_nav_active        = isset( $pb_aff_nav_active ) ? (string) $pb_aff_nav_active : 'materials';
 ?>
+<div class="pb-aff-hub pb-aff-hub--subpage">
+	<?php include PB_AFFILIATES_PATH . 'templates/my-account/parts/affiliate-hub-nav.php'; ?>
+</div>
 <div class="pb-aff-promo-materials" data-pb-aff-promo-materials="1">
 	<h2><?php esc_html_e( 'Materiais promocionais', 'pb-affiliates' ); ?></h2>
 	<p class="description"><?php esc_html_e( 'Arquivos disponibilizados pela loja para uso em suas campanhas.', 'pb-affiliates' ); ?></p>

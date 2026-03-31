@@ -3,26 +3,34 @@
  * Affiliate dashboard (Minha conta).
  *
  * @package PB_Affiliates
- * @var string $link Referral link.
- * @var string $code Affiliate public code.
- * @var object|null $summary Dashboard totals (DB rows + estimated_*, total_with_estimates, pending_with_estimates).
+ * @var object|null $summary Dashboard totals (DB rows + prévia pedidos pendentes, total_with_estimates, pending_with_estimates).
  * @var string $commission_rate_description Comissão efetiva (texto).
- * @var array  $affiliate_domains           Domínios de referência (meta pb_affiliate_verified_domains).
  * @var string $pb_aff_payment_mode          manual|split.
  * @var float  $pb_aff_withdraw_balance     Saldo manual disponível para novo saque (após retenção, fora saque pendente).
  * @var bool   $pb_aff_withdraw_pending      Há pedido de saque pendente.
  * @var float  $pb_aff_min_withdrawal        Valor mínimo configurado.
  * @var array  $pb_aff_paid_withdrawals      Saques já pagos (histórico; modo manual).
+ * @var bool   $pb_aff_show_payments_received Exibe bloco «Pagamentos recebidos» (em split só se houver dados relevantes).
  * @var bool   $pb_aff_has_promo_materials   Exibe atalho para materiais promocionais.
  * @var string $pb_aff_materials_url         URL do endpoint affiliate-materials.
+ * @var string $pb_aff_pagbank_account_id    Account ID PagBank (modo split).
+ * @var bool   $pb_aff_split_receipt_ready   true se ACCO_… válido para split.
+ * @var array  $pb_aff_bank_dashboard_lines  Linhas de dados bancários (documento mascarado).
+ * @var array  $pb_aff_period_bundle       Métricas do período + comparação com período anterior.
+ * @var array  $pb_aff_dash_chart          Série do gráfico (labels, values, order_values).
+ * @var int    $pb_dash_days                7|14|30|90 (query pb_dash).
+ * @var int    $pb_aff_clicks_alltime      Total de cliques no histórico.
+ * @var string $pb_aff_nav_active          dashboard (para o partial de navegação).
  */
 
 defined( 'ABSPATH' ) || exit;
 
 // Algumas themes/caches não exibem `wc_print_notices()` nos endpoints customizados do WooCommerce.
 // Mantemos WooCommerce notices quando disponíveis e fazemos fallback por query-string quando estiverem vazias.
+// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Notice keys are read-only (redirect); values sanitized below.
 $pb_aff_area_notice_key  = isset( $_GET['pb_aff_area_notice'] ) ? sanitize_key( wp_unslash( $_GET['pb_aff_area_notice'] ) ) : '';
 $pb_aff_area_notice_type = isset( $_GET['pb_aff_area_notice_type'] ) ? sanitize_key( wp_unslash( $_GET['pb_aff_area_notice_type'] ) ) : '';
+// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 $pb_aff_area_notice_type = in_array( $pb_aff_area_notice_type, array( 'error', 'success' ), true ) ? $pb_aff_area_notice_type : '';
 
@@ -90,8 +98,6 @@ if ( $pb_has_wc_notices && function_exists( 'wc_print_notices' ) ) {
 	}
 }
 
-$affiliate_domains = isset( $affiliate_domains ) && is_array( $affiliate_domains ) ? $affiliate_domains : array();
-
 if ( ! isset( $summary ) || ! is_object( $summary ) ) {
 	$summary = (object) array();
 }
@@ -107,140 +113,240 @@ $pb_aff_est_count     = isset( $summary->estimated_count ) ? (int) $summary->est
 $pb_aff_total_incl    = isset( $summary->total_with_estimates ) ? (float) $summary->total_with_estimates : $pb_aff_total + $pb_aff_est_total;
 $pb_aff_pending_incl  = isset( $summary->pending_with_estimates ) ? (float) $summary->pending_with_estimates : $pb_aff_pending_total + $pb_aff_est_total;
 
-$pb_aff_tip_topline_total   = __( 'Soma de tudo que já foi registrado na loja como comissão (pendente de repasse ou já pago) mais estimativas para pedidos seus pendentes de pagamento.', 'pb-affiliates' );
-$pb_aff_tip_topline_pending = __( 'O que ainda não foi pago a você: comissões já registradas aguardando repasse, mais estimativas enquanto o pedido segue pendente de pagamento (sem comissão registrada ainda). Não inclui comissões já marcadas como pagas ao afiliado.', 'pb-affiliates' );
-$pb_aff_tip_hero_title      = __( 'Registrado: comissão já reconhecida. Estimativa: valor previsto para pedidos pendentes de pagamento, antes de existir registro de comissão. Em Pendentes entram comissões registradas aguardando repasse ao afiliado e essas estimativas. Pagas são só as repassadas a você.', 'pb-affiliates' );
-$pb_aff_tip_card_total      = __( 'Total = soma do registrado na loja mais estimativas para pedidos pendentes de pagamento.', 'pb-affiliates' );
-$pb_aff_tip_card_pending    = __( 'Pendentes = comissões registradas com repasse ao afiliado ainda por fazer, mais estimativas para pedidos pendentes de pagamento. Exclui o que já foi pago a você.', 'pb-affiliates' );
-?>
-<div class="pb-aff-dashboard-topline" role="region" aria-label="<?php esc_attr_e( 'Totais de comissão', 'pb-affiliates' ); ?>">
-	<div class="pb-aff-dashboard-topline__inner">
-		<div class="pb-aff-dashboard-topline__stat">
-			<span class="pb-aff-dashboard-topline__label-row">
-				<span class="pb-aff-dashboard-topline__label"><?php esc_html_e( 'Total de comissões', 'pb-affiliates' ); ?></span>
-				<span class="pb-aff-dashboard-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_topline_total ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_topline_total ); ?>"><?php esc_html_e( '(i)', 'pb-affiliates' ); ?></span>
-			</span>
-			<strong class="pb-aff-dashboard-topline__value"><?php echo wp_kses_post( wc_price( $pb_aff_total_incl ) ); ?></strong>
-		</div>
-		<div class="pb-aff-dashboard-topline__stat pb-aff-dashboard-topline__stat--pending">
-			<span class="pb-aff-dashboard-topline__label-row">
-				<span class="pb-aff-dashboard-topline__label"><?php esc_html_e( 'Pendentes', 'pb-affiliates' ); ?></span>
-				<span class="pb-aff-dashboard-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_topline_pending ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_topline_pending ); ?>"><?php esc_html_e( '(i)', 'pb-affiliates' ); ?></span>
-			</span>
-			<strong class="pb-aff-dashboard-topline__value"><?php echo wp_kses_post( wc_price( $pb_aff_pending_incl ) ); ?></strong>
-		</div>
-	</div>
-	<?php if ( $pb_aff_est_count > 0 ) : ?>
-		<p class="pb-aff-dashboard-topline__hint">
-			<?php esc_html_e( 'Inclui estimativas para pedidos seus pendentes de pagamento (por exemplo, aguardando pagamento ou confirmação).', 'pb-affiliates' ); ?>
-		</p>
-	<?php endif; ?>
-</div>
+$pb_aff_tip_hero_title   = __( 'Registrado: comissão já reconhecida na loja. Pedidos pendentes: atribuídos a você sem comissão registrada ainda; mostramos o valor previsto. Na secção Pendentes entram comissões já registradas aguardando repasse e esse valor previsto. Pagas são só as repassadas a você.', 'pb-affiliates' );
+$pb_aff_tip_card_total   = __( 'Total = soma do registrado na loja mais o valor previsto para pedidos pendentes.', 'pb-affiliates' );
+$pb_aff_tip_card_pending = __( 'Pendentes = comissões registradas com repasse ao afiliado ainda por fazer, mais o valor previsto em pedidos pendentes. Exclui o que já foi pago a você.', 'pb-affiliates' );
+$pb_aff_tip_period_comm  = __( 'Comissões já registradas na loja neste intervalo (somadas na base de dados). Não inclui apenas o valor previsto de pedidos sem linha de comissão.', 'pb-affiliates' );
 
-<section class="pb-aff-dashboard-hero" aria-labelledby="pb-aff-dashboard-hero-title">
-	<h2 id="pb-aff-dashboard-hero-title" class="pb-aff-dashboard-hero__title pb-aff-dashboard-hero__title--with-info">
-		<?php esc_html_e( 'Resumo das comissões', 'pb-affiliates' ); ?>
-		<span class="pb-aff-dashboard-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_hero_title ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_hero_title ); ?>"><?php esc_html_e( '(i)', 'pb-affiliates' ); ?></span>
-	</h2>
-	<p class="pb-aff-dashboard-hero__intro">
-		<?php esc_html_e( 'O painel abaixo separa o que já está registrado na loja, estimativas para pedidos pendentes de pagamento e comissões já pagas a você.', 'pb-affiliates' ); ?>
-	</p>
-	<p class="pb-aff-dashboard-hero__legend">
-		<?php esc_html_e( 'Passe o cursor (ou foco com o teclado) no (i) para ver o significado de cada total.', 'pb-affiliates' ); ?>
-	</p>
-	<div class="pb-aff-dashboard-hero__grid">
-		<div class="pb-aff-dashboard-hero__card pb-aff-dashboard-hero__card--total">
-			<span class="pb-aff-dashboard-hero__label">
-				<?php esc_html_e( 'Total (registrado + estimativa)', 'pb-affiliates' ); ?>
-				<span class="pb-aff-dashboard-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_card_total ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_card_total ); ?>"><?php esc_html_e( '(i)', 'pb-affiliates' ); ?></span>
-			</span>
-			<strong class="pb-aff-dashboard-hero__amount"><?php echo wp_kses_post( wc_price( $pb_aff_total_incl ) ); ?></strong>
-			<span class="pb-aff-dashboard-hero__meta">
-				<?php
-				$pb_aff_meta_bits = array(
-					sprintf(
-						/* translators: %d: commission rows in DB */
-						_n( '%d registro na loja', '%d registros na loja', $pb_aff_orders, 'pb-affiliates' ),
-						$pb_aff_orders
-					),
-				);
-				if ( $pb_aff_est_count > 0 ) {
-					$pb_aff_meta_bits[] = sprintf(
-						/* translators: %d: attributed orders still pending payment (commission shown as estimate) */
-						_n( '%d pedido pendente de pagamento', '%d pedidos pendentes de pagamento', $pb_aff_est_count, 'pb-affiliates' ),
-						$pb_aff_est_count
-					);
-				}
-				echo esc_html( implode( ' · ', $pb_aff_meta_bits ) );
-				?>
-			</span>
-		</div>
-		<div class="pb-aff-dashboard-hero__card pb-aff-dashboard-hero__card--pending">
-			<span class="pb-aff-dashboard-hero__label">
-				<?php esc_html_e( 'Pendentes (registrado + estimativa)', 'pb-affiliates' ); ?>
-				<span class="pb-aff-dashboard-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_card_pending ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_card_pending ); ?>"><?php esc_html_e( '(i)', 'pb-affiliates' ); ?></span>
-				<span class="pb-aff-badge pb-aff-badge--pending"><?php esc_html_e( 'Pendente', 'pb-affiliates' ); ?></span>
-			</span>
-			<strong class="pb-aff-dashboard-hero__amount"><?php echo wp_kses_post( wc_price( $pb_aff_pending_incl ) ); ?></strong>
-			<span class="pb-aff-dashboard-hero__meta">
-				<?php
-				$pb_aff_pend_bits = array();
-				if ( $pb_aff_pending_count > 0 ) {
-					$pb_aff_pend_bits[] = sprintf(
-						/* translators: %d: pending commission rows in DB */
-						_n( '%d registrada pendente de repasse', '%d registradas pendentes de repasse', $pb_aff_pending_count, 'pb-affiliates' ),
-						$pb_aff_pending_count
-					);
-				}
-				if ( $pb_aff_est_count > 0 ) {
-					$pb_aff_pend_bits[] = sprintf(
-						/* translators: %d: attributed orders still pending payment (commission shown as estimate) */
-						_n( '%d pedido pendente de pagamento', '%d pedidos pendentes de pagamento', $pb_aff_est_count, 'pb-affiliates' ),
-						$pb_aff_est_count
-					);
-				}
-				if ( empty( $pb_aff_pend_bits ) ) {
-					esc_html_e( 'Nada pendente no momento.', 'pb-affiliates' );
-				} else {
-					echo esc_html( implode( ' · ', $pb_aff_pend_bits ) );
-				}
-				?>
-			</span>
-		</div>
-		<div class="pb-aff-dashboard-hero__card pb-aff-dashboard-hero__card--paid">
-			<span class="pb-aff-dashboard-hero__label">
-				<?php esc_html_e( 'Pagas', 'pb-affiliates' ); ?>
-				<span class="pb-aff-badge pb-aff-badge--paid"><?php esc_html_e( 'Paga', 'pb-affiliates' ); ?></span>
-			</span>
-			<strong class="pb-aff-dashboard-hero__amount"><?php echo wp_kses_post( wc_price( $pb_aff_paid_total ) ); ?></strong>
-			<span class="pb-aff-dashboard-hero__meta">
-				<?php
-				echo esc_html(
-					sprintf(
-						/* translators: %d: number of paid commission rows */
-						_n( '%d comissão paga', '%d comissões pagas', $pb_aff_paid_count, 'pb-affiliates' ),
-						$pb_aff_paid_count
-					)
-				);
-				?>
-			</span>
-		</div>
+$pb_aff_period_bundle = isset( $pb_aff_period_bundle ) && is_array( $pb_aff_period_bundle ) ? $pb_aff_period_bundle : array(
+	'days'          => 30,
+	'range_heading' => '',
+	'current'       => array(
+		'clicks'     => 0,
+		'orders'     => 0,
+		'commission' => 0.0,
+	),
+	'delta_pct'     => array(
+		'clicks'     => null,
+		'orders'     => null,
+		'commission' => null,
+	),
+);
+$pb_aff_dash_chart     = isset( $pb_aff_dash_chart ) && is_array( $pb_aff_dash_chart ) ? $pb_aff_dash_chart : array(
+	'labels'       => array(),
+	'values'       => array(),
+	'order_values' => array(),
+);
+$pb_dash_days          = isset( $pb_dash_days ) ? (int) $pb_dash_days : 30;
+$pb_aff_clicks_alltime = isset( $pb_aff_clicks_alltime ) ? (int) $pb_aff_clicks_alltime : 0;
+$pb_dash_cur           = isset( $pb_aff_period_bundle['current'] ) && is_array( $pb_aff_period_bundle['current'] ) ? $pb_aff_period_bundle['current'] : array();
+$pb_dash_dlt           = isset( $pb_aff_period_bundle['delta_pct'] ) && is_array( $pb_aff_period_bundle['delta_pct'] ) ? $pb_aff_period_bundle['delta_pct'] : array();
+$pb_dash_clicks        = isset( $pb_dash_cur['clicks'] ) ? (int) $pb_dash_cur['clicks'] : 0;
+$pb_dash_orders        = isset( $pb_dash_cur['orders'] ) ? (int) $pb_dash_cur['orders'] : 0;
+$pb_dash_comm          = isset( $pb_dash_cur['commission'] ) ? (float) $pb_dash_cur['commission'] : 0.0;
+
+$pb_aff_order_vals = isset( $pb_aff_dash_chart['order_values'] ) ? array_values( array_map( 'intval', (array) $pb_aff_dash_chart['order_values'] ) ) : array();
+$pb_dash_chart_json  = wp_json_encode(
+	array(
+		'labels'      => isset( $pb_aff_dash_chart['labels'] ) ? array_values( (array) $pb_aff_dash_chart['labels'] ) : array(),
+		'values'      => isset( $pb_aff_dash_chart['values'] ) ? array_values( array_map( 'intval', (array) $pb_aff_dash_chart['values'] ) ) : array(),
+		'orderValues' => $pb_aff_order_vals,
+		'dslabel'     => __( 'Visitas / cliques', 'pb-affiliates' ),
+		'orderLabel'  => __( 'Pedidos', 'pb-affiliates' ),
+	),
+	JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP
+);
+?>
+<div class="pb-aff-hub">
+	<?php include PB_AFFILIATES_PATH . 'templates/my-account/parts/affiliate-hub-nav.php'; ?>
+
+	<div class="pb-aff-hub-toolbar">
+		<form method="get" action="<?php echo esc_url( wc_get_account_endpoint_url( 'affiliate-area' ) ); ?>" class="pb-aff-hub-toolbar__form">
+			<label class="pb-aff-hub-toolbar__label" for="pb-aff-dash-days"><?php esc_html_e( 'Período', 'pb-affiliates' ); ?></label>
+			<select name="pb_dash" id="pb-aff-dash-days" class="pb-aff-hub-toolbar__select" onchange="this.form.submit()">
+				<option value="7" <?php selected( $pb_dash_days, 7 ); ?>><?php esc_html_e( 'Últimos 7 dias', 'pb-affiliates' ); ?></option>
+				<option value="14" <?php selected( $pb_dash_days, 14 ); ?>><?php esc_html_e( 'Últimos 14 dias', 'pb-affiliates' ); ?></option>
+				<option value="30" <?php selected( $pb_dash_days, 30 ); ?>><?php esc_html_e( 'Últimos 30 dias', 'pb-affiliates' ); ?></option>
+				<option value="90" <?php selected( $pb_dash_days, 90 ); ?>><?php esc_html_e( 'Últimos 90 dias', 'pb-affiliates' ); ?></option>
+			</select>
+			<span class="pb-aff-hub-toolbar__range"><?php echo esc_html( isset( $pb_aff_period_bundle['range_heading'] ) ? (string) $pb_aff_period_bundle['range_heading'] : '' ); ?></span>
+			<noscript><button type="submit" class="button"><?php esc_html_e( 'Aplicar', 'pb-affiliates' ); ?></button></noscript>
+		</form>
 	</div>
-	<p class="pb-aff-dashboard-hero__actions">
-		<a class="button woocommerce-Button pb-aff-btn--secondary" href="<?php echo esc_url( wc_get_account_endpoint_url( 'affiliate-reports' ) ); ?>">
-			<?php esc_html_e( 'Ver relatórios', 'pb-affiliates' ); ?>
-		</a>
-		<?php
-		$pb_aff_has_promo_materials = ! empty( $pb_aff_has_promo_materials );
-		$pb_aff_materials_url       = isset( $pb_aff_materials_url ) ? (string) $pb_aff_materials_url : '';
-		if ( $pb_aff_has_promo_materials && $pb_aff_materials_url ) :
-			?>
-		<a class="button woocommerce-Button pb-aff-btn--secondary" href="<?php echo esc_url( $pb_aff_materials_url ); ?>">
-			<?php esc_html_e( 'Ver materiais promocionais', 'pb-affiliates' ); ?>
-		</a>
+
+	<div class="pb-aff-hub-metrics" role="region" aria-label="<?php esc_attr_e( 'Métricas do período selecionado', 'pb-affiliates' ); ?>">
+		<article class="pb-aff-metric-card pb-aff-metric-card--clicks">
+			<header class="pb-aff-metric-card__head">
+				<span class="pb-aff-metric-card__label"><?php esc_html_e( 'Visitas e cliques', 'pb-affiliates' ); ?></span>
+				<?php
+				$pct = isset( $pb_dash_dlt['clicks'] ) ? $pb_dash_dlt['clicks'] : null;
+				if ( null === $pct ) :
+					?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--na" title="<?php esc_attr_e( 'Sem período anterior para comparar', 'pb-affiliates' ); ?>">—</span>
+				<?php elseif ( (float) $pct > 0 ) : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--up">↑ <?php echo esc_html( number_format_i18n( (float) $pct, 1 ) ); ?>%</span>
+				<?php elseif ( (float) $pct < 0 ) : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--down">↓ <?php echo esc_html( number_format_i18n( abs( (float) $pct ), 1 ) ); ?>%</span>
+				<?php else : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--flat">→ 0%</span>
+				<?php endif; ?>
+			</header>
+			<p class="pb-aff-metric-card__value"><?php echo esc_html( number_format_i18n( $pb_dash_clicks ) ); ?></p>
+			<p class="pb-aff-metric-card__foot"><a href="<?php echo esc_url( wc_get_account_endpoint_url( 'affiliate-reports' ) ); ?>"><?php esc_html_e( 'Ver registros', 'pb-affiliates' ); ?></a></p>
+		</article>
+		<article class="pb-aff-metric-card pb-aff-metric-card--orders">
+			<header class="pb-aff-metric-card__head">
+				<span class="pb-aff-metric-card__label"><?php esc_html_e( 'Pedidos atribuídos', 'pb-affiliates' ); ?></span>
+				<?php
+				$pct = isset( $pb_dash_dlt['orders'] ) ? $pb_dash_dlt['orders'] : null;
+				if ( null === $pct ) :
+					?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--na" title="<?php esc_attr_e( 'Sem período anterior para comparar', 'pb-affiliates' ); ?>">—</span>
+				<?php elseif ( (float) $pct > 0 ) : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--up">↑ <?php echo esc_html( number_format_i18n( (float) $pct, 1 ) ); ?>%</span>
+				<?php elseif ( (float) $pct < 0 ) : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--down">↓ <?php echo esc_html( number_format_i18n( abs( (float) $pct ), 1 ) ); ?>%</span>
+				<?php else : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--flat">→ 0%</span>
+				<?php endif; ?>
+			</header>
+			<p class="pb-aff-metric-card__value"><?php echo esc_html( number_format_i18n( $pb_dash_orders ) ); ?></p>
+			<p class="pb-aff-metric-card__foot"><a href="<?php echo esc_url( wc_get_account_endpoint_url( 'affiliate-reports' ) ); ?>"><?php esc_html_e( 'Ver relatórios', 'pb-affiliates' ); ?></a></p>
+		</article>
+		<article class="pb-aff-metric-card pb-aff-metric-card--comm">
+			<header class="pb-aff-metric-card__head">
+				<span class="pb-aff-metric-card__label"><?php esc_html_e( 'Comissões registradas', 'pb-affiliates' ); ?></span>
+				<span class="pb-aff-dashboard-info pb-aff-metric-card__info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_period_comm ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_period_comm ); ?>"><?php echo esc_html( 'ℹ' ); ?></span>
+				<?php
+				$pct = isset( $pb_dash_dlt['commission'] ) ? $pb_dash_dlt['commission'] : null;
+				if ( null === $pct ) :
+					?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--na" title="<?php esc_attr_e( 'Sem período anterior para comparar', 'pb-affiliates' ); ?>">—</span>
+				<?php elseif ( (float) $pct > 0 ) : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--up">↑ <?php echo esc_html( number_format_i18n( (float) $pct, 1 ) ); ?>%</span>
+				<?php elseif ( (float) $pct < 0 ) : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--down">↓ <?php echo esc_html( number_format_i18n( abs( (float) $pct ), 1 ) ); ?>%</span>
+				<?php else : ?>
+				<span class="pb-aff-metric-trend pb-aff-metric-trend--flat">→ 0%</span>
+				<?php endif; ?>
+			</header>
+			<p class="pb-aff-metric-card__value pb-aff-metric-card__value--money"><?php echo wp_kses_post( wc_price( $pb_dash_comm ) ); ?></p>
+			<p class="pb-aff-metric-card__foot"><?php esc_html_e( 'Só valores já lançados na loja.', 'pb-affiliates' ); ?></p>
+		</article>
+	</div>
+
+	<div class="pb-aff-chart-wrap pb-aff-hub-chart">
+		<canvas id="pb-aff-dashboard-chart" width="400" height="220" aria-label="<?php esc_attr_e( 'Gráfico de visitas, cliques e pedidos por dia', 'pb-affiliates' ); ?>"></canvas>
+	</div>
+	<script type="application/json" id="pb-aff-dash-chart-json"><?php echo $pb_dash_chart_json; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></script>
+	<script>
+	window.addEventListener('load', function () {
+		var cfgEl = document.getElementById('pb-aff-dash-chart-json');
+		var ctx = document.getElementById('pb-aff-dashboard-chart');
+		if (!cfgEl || !ctx || typeof Chart === 'undefined') return;
+		var cfg;
+		try { cfg = JSON.parse(cfgEl.textContent || '{}'); } catch (e) { return; }
+		if (!cfg.labels || !cfg.values) return;
+		var orderSeries = cfg.orderValues && cfg.orderValues.length === cfg.values.length ? cfg.orderValues : cfg.values.map(function () { return 0; });
+		new Chart(ctx, {
+			type: 'line',
+			data: {
+				labels: cfg.labels,
+				datasets: [
+					{
+						label: cfg.dslabel || '',
+						data: cfg.values,
+						borderColor: '#0e7490',
+						backgroundColor: 'rgba(14, 116, 144, 0.12)',
+						fill: true,
+						tension: 0.3,
+						pointRadius: 2,
+						pointHoverRadius: 5
+					},
+					{
+						label: cfg.orderLabel || '',
+						data: orderSeries,
+						borderColor: '#ea580c',
+						backgroundColor: 'rgba(234, 88, 12, 0.1)',
+						fill: true,
+						tension: 0.3,
+						pointRadius: 2,
+						pointHoverRadius: 5
+					}
+				]
+			},
+			options: {
+				responsive: true,
+				maintainAspectRatio: true,
+				interaction: { mode: 'index', intersect: false },
+				plugins: {
+					legend: { display: true, position: 'bottom' }
+				},
+				scales: {
+					y: { beginAtZero: true, ticks: { precision: 0 } }
+				}
+			}
+		});
+	});
+	</script>
+
+	<section class="pb-aff-hub-lifetime" aria-labelledby="pb-aff-lifetime-title">
+		<h2 id="pb-aff-lifetime-title" class="pb-aff-hub-lifetime__title">
+			<?php esc_html_e( 'Todo o período', 'pb-affiliates' ); ?>
+			<span class="pb-aff-dashboard-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_hero_title ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_hero_title ); ?>"><?php echo esc_html( 'ℹ' ); ?></span>
+		</h2>
+		<?php if ( $pb_aff_est_count > 0 ) : ?>
+			<p class="pb-aff-hub-lifetime__hint"><?php esc_html_e( 'Os totais abaixo incluem valor previsto para pedidos pendentes (sem linha de comissão ainda).', 'pb-affiliates' ); ?></p>
 		<?php endif; ?>
-	</p>
-</section>
+		<div class="pb-aff-hub-lifetime__grid">
+			<div class="pb-aff-hub-lifetime__card pb-aff-hub-lifetime__card--total">
+				<span class="pb-aff-hub-lifetime__label">
+					<?php esc_html_e( 'Total', 'pb-affiliates' ); ?>
+					<span class="pb-aff-dashboard-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_card_total ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_card_total ); ?>"><?php echo esc_html( 'ℹ' ); ?></span>
+				</span>
+				<strong class="pb-aff-hub-lifetime__value"><?php echo wp_kses_post( wc_price( $pb_aff_total_incl ) ); ?></strong>
+				<span class="pb-aff-hub-lifetime__meta"><?php echo esc_html( sprintf( /* translators: %d: number of shop orders counted */ _n( '%d registro na loja', '%d registros na loja', $pb_aff_orders, 'pb-affiliates' ), $pb_aff_orders ) ); ?></span>
+			</div>
+			<div class="pb-aff-hub-lifetime__card pb-aff-hub-lifetime__card--pending">
+				<span class="pb-aff-hub-lifetime__label">
+					<?php esc_html_e( 'Pendentes', 'pb-affiliates' ); ?>
+					<span class="pb-aff-dashboard-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_tip_card_pending ); ?>" aria-label="<?php echo esc_attr( $pb_aff_tip_card_pending ); ?>"><?php echo esc_html( 'ℹ' ); ?></span>
+				</span>
+				<strong class="pb-aff-hub-lifetime__value"><?php echo wp_kses_post( wc_price( $pb_aff_pending_incl ) ); ?></strong>
+				<span class="pb-aff-hub-lifetime__meta">
+					<?php
+					$pb_aff_pend_bits = array();
+					if ( $pb_aff_pending_count > 0 ) {
+						$pb_aff_pend_bits[] = sprintf(
+							/* translators: %d: number of pending commission rows */
+							_n( '%d registrada pendente de repasse', '%d registradas pendentes de repasse', $pb_aff_pending_count, 'pb-affiliates' ),
+							$pb_aff_pending_count
+						);
+					}
+					if ( $pb_aff_est_count > 0 ) {
+						$pb_aff_pend_bits[] = sprintf(
+							/* translators: %d: number of orders with estimated commission */
+							_n( '%d pedido pendente', '%d pedidos pendentes', $pb_aff_est_count, 'pb-affiliates' ),
+							$pb_aff_est_count
+						);
+					}
+					echo empty( $pb_aff_pend_bits ) ? esc_html__( 'Nada pendente no momento.', 'pb-affiliates' ) : esc_html( implode( ' · ', $pb_aff_pend_bits ) );
+					?>
+				</span>
+			</div>
+			<div class="pb-aff-hub-lifetime__card pb-aff-hub-lifetime__card--paid">
+				<span class="pb-aff-hub-lifetime__label"><?php esc_html_e( 'Pagas', 'pb-affiliates' ); ?></span>
+				<strong class="pb-aff-hub-lifetime__value"><?php echo wp_kses_post( wc_price( $pb_aff_paid_total ) ); ?></strong>
+				<span class="pb-aff-hub-lifetime__meta"><?php echo esc_html( sprintf( /* translators: %d: number of paid commissions */ _n( '%d comissão paga', '%d comissões pagas', $pb_aff_paid_count, 'pb-affiliates' ), $pb_aff_paid_count ) ); ?></span>
+			</div>
+			<div class="pb-aff-hub-lifetime__card pb-aff-hub-lifetime__card--visits">
+				<span class="pb-aff-hub-lifetime__label"><?php esc_html_e( 'Cliques no histórico', 'pb-affiliates' ); ?></span>
+				<strong class="pb-aff-hub-lifetime__value"><?php echo esc_html( number_format_i18n( $pb_aff_clicks_alltime ) ); ?></strong>
+				<span class="pb-aff-hub-lifetime__meta"><?php esc_html_e( 'Total desde o início do programa.', 'pb-affiliates' ); ?></span>
+			</div>
+		</div>
+	</section>
+</div>
 
 <?php
 $pb_aff_payment_mode     = isset( $pb_aff_payment_mode ) ? (string) $pb_aff_payment_mode : 'manual';
@@ -293,7 +399,9 @@ $pb_aff_can_request      = ( 'manual' === $pb_aff_payment_mode && ! $pb_aff_with
 
 <?php
 $pb_aff_paid_withdrawals = isset( $pb_aff_paid_withdrawals ) && is_array( $pb_aff_paid_withdrawals ) ? $pb_aff_paid_withdrawals : array();
+$pb_aff_show_payments_received = ! isset( $pb_aff_show_payments_received ) || $pb_aff_show_payments_received;
 ?>
+<?php if ( $pb_aff_show_payments_received ) : ?>
 <section class="pb-aff-dashboard-payments-history" aria-labelledby="pb-aff-payments-history-title">
 	<h2 id="pb-aff-payments-history-title"><?php esc_html_e( 'Pagamentos recebidos', 'pb-affiliates' ); ?></h2>
 	<?php if ( 'split' === $pb_aff_payment_mode ) : ?>
@@ -354,177 +462,55 @@ $pb_aff_paid_withdrawals = isset( $pb_aff_paid_withdrawals ) && is_array( $pb_af
 		</table>
 	<?php endif; ?>
 </section>
-
-<h3><?php esc_html_e( 'Identificador de afiliado', 'pb-affiliates' ); ?></h3>
-<form method="post" class="pb-aff-change-code">
-	<?php wp_nonce_field( 'pb_aff_area', 'pb_aff_area_nonce' ); ?>
-	<input type="hidden" name="pb_aff_area_action" value="change_code" />
-	<p class="woocommerce-form-row woocommerce-form-row--wide form-row form-row-wide">
-		<label for="pb_aff_new_code"><?php esc_html_e( 'Identificador público (usado na URL de indicação)', 'pb-affiliates' ); ?></label>
-		<input type="text" name="pb_aff_new_code" id="pb_aff_new_code" class="woocommerce-Input input-text" value="<?php echo esc_attr( (string) $code ); ?>" autocomplete="off" maxlength="40" />
-	</p>
-	<p>
-		<button type="submit" class="button woocommerce-Button"><?php esc_html_e( 'Salvar identificador', 'pb-affiliates' ); ?></button>
-	</p>
-	<p class="description"><?php esc_html_e( 'Apenas letras minúsculas, números, hífen e sublinhado; mínimo 3 caracteres. Deve ser único na loja.', 'pb-affiliates' ); ?></p>
-</form>
-
-<h2><?php esc_html_e( 'Seu link de afiliado', 'pb-affiliates' ); ?></h2>
-<div class="pb-aff-link-row">
-	<input type="text" id="pb-aff-referral-link" readonly="readonly" class="pb-aff-link-row__input large-text woocommerce-Input" value="<?php echo esc_attr( $link ); ?>" onclick="this.select();" aria-label="<?php esc_attr_e( 'Link de afiliado', 'pb-affiliates' ); ?>" />
-	<button type="button" class="button" id="pb-aff-copy-link-btn" data-label-done="<?php echo esc_attr( __( 'Copiado!', 'pb-affiliates' ) ); ?>">
-		<?php esc_html_e( 'Copiar link', 'pb-affiliates' ); ?>
-	</button>
-</div>
+<?php endif; ?>
 
 <h3><?php esc_html_e( 'Comissão por venda', 'pb-affiliates' ); ?></h3>
 <p class="pb-aff-commission-desc"><?php echo esc_html( isset( $commission_rate_description ) ? (string) $commission_rate_description : '' ); ?></p>
 <p class="description"><?php esc_html_e( 'O valor final depende dos produtos do pedido. Cupons de afiliado com regra própria podem alterar a comissão.', 'pb-affiliates' ); ?></p>
-
-<h3><?php esc_html_e( 'Domínio de referência (Referer)', 'pb-affiliates' ); ?></h3>
-<?php
-$pb_aff_referer_hint = __( 'Lembre-se de não colocar rel="noreferrer" em seus links.', 'pb-affiliates' );
-?>
-<p class="pb-aff-domain-intro">
-	<?php esc_html_e( 'Tem um site ou blog? Informe o URL aqui.', 'pb-affiliates' ); ?><br />
-	<?php esc_html_e( 'Toda vez que um link for clicado a partir do seu site, automaticamente saberemos que foi sua indicação, sem sequer precisar informar o seu código de afiliado.', 'pb-affiliates' ); ?>
-	<span class="pb-aff-domain-info" tabindex="0" title="<?php echo esc_attr( $pb_aff_referer_hint ); ?>" aria-label="<?php echo esc_attr( $pb_aff_referer_hint ); ?>">(i)</span>
-</p>
-<form method="post" class="pb-aff-domain-form">
-	<?php wp_nonce_field( 'pb_aff_domain', 'pb_aff_domain_nonce' ); ?>
-	<input type="hidden" name="pb_aff_domain_action" value="add" />
-	<p>
-		<label for="pb_aff_domain_url"><?php esc_html_e( 'URL do seu site (domínio ou subdomínio)', 'pb-affiliates' ); ?></label>
-		<input type="url" name="pb_aff_domain_url" id="pb_aff_domain_url" class="woocommerce-Input input-text" placeholder="https://exemplo.com.br" />
-	</p>
-	<button type="submit" class="button"><?php esc_html_e( 'Adicionar', 'pb-affiliates' ); ?></button>
-</form>
-
-<?php if ( ! empty( $affiliate_domains ) ) : ?>
-	<h4 class="pb-aff-domain-heading"><?php esc_html_e( 'Seus sites', 'pb-affiliates' ); ?></h4>
-	<table class="shop_table shop_table_responsive pb-aff-domain-table">
-		<thead>
-			<tr>
-				<th><?php esc_html_e( 'Site', 'pb-affiliates' ); ?></th>
-				<th><?php esc_html_e( 'Status', 'pb-affiliates' ); ?></th>
-				<th class="pb-aff-domain-table__action"><?php esc_html_e( 'Ações', 'pb-affiliates' ); ?></th>
-			</tr>
-		</thead>
-		<tbody>
-			<?php
-			foreach ( $affiliate_domains as $pb_aff_d ) {
-				$pb_aff_host = isset( $pb_aff_d['host'] ) ? (string) $pb_aff_d['host'] : '';
-				if ( '' === $pb_aff_host ) {
-					continue;
-				}
-				$pb_aff_verified = ! empty( $pb_aff_d['verified'] );
-				$pb_aff_token          = isset( $pb_aff_d['token'] ) ? (string) $pb_aff_d['token'] : '';
-				$pb_aff_file_path      = $pb_aff_token ? 'https://' . $pb_aff_host . '/.well-known/pb-affiliate-' . $pb_aff_token . '.txt' : '';
-				$pb_aff_download_name  = $pb_aff_token ? 'pb-affiliate-' . $pb_aff_token . '.txt' : '';
-				$pb_aff_download_href  = $pb_aff_token ? 'data:text/plain;charset=utf-8,' . rawurlencode( $pb_aff_token ) : '';
-				$pb_aff_remove_confirm = __( 'Remover este site da lista?', 'pb-affiliates' );
-				?>
-			<tr>
-				<td data-title="<?php esc_attr_e( 'Site', 'pb-affiliates' ); ?>"><?php echo esc_html( $pb_aff_host ); ?></td>
-				<td data-title="<?php esc_attr_e( 'Status', 'pb-affiliates' ); ?>">
-					<?php
-					if ( $pb_aff_verified ) {
-						esc_html_e( 'Validado', 'pb-affiliates' );
-					} else {
-						esc_html_e( 'Pendente de validação', 'pb-affiliates' );
-					}
-					?>
-				</td>
-				<td class="pb-aff-domain-table__action" data-title="<?php esc_attr_e( 'Ações', 'pb-affiliates' ); ?>">
-					<div class="pb-aff-domain-actions">
-						<?php if ( ! $pb_aff_verified && $pb_aff_token && $pb_aff_download_href ) : ?>
-							<form method="post" class="pb-aff-domain-validate-form">
-								<?php wp_nonce_field( 'pb_aff_domain', 'pb_aff_domain_nonce' ); ?>
-								<input type="hidden" name="pb_aff_domain_action" value="validate" />
-								<input type="hidden" name="pb_aff_domain_host" value="<?php echo esc_attr( $pb_aff_host ); ?>" />
-								<button type="submit" class="button woocommerce-Button pb-aff-btn--primary"><?php esc_html_e( 'Validar', 'pb-affiliates' ); ?></button>
-							</form>
-							<a class="button woocommerce-Button pb-aff-btn--secondary" href="<?php echo esc_attr( $pb_aff_download_href ); ?>" download="<?php echo esc_attr( $pb_aff_download_name ); ?>"><?php esc_html_e( 'Baixar arquivo', 'pb-affiliates' ); ?></a>
-						<?php endif; ?>
-						<form method="post" class="pb-aff-domain-remove-form" onsubmit="return window.confirm(<?php echo wp_json_encode( $pb_aff_remove_confirm ); ?>);">
-							<?php wp_nonce_field( 'pb_aff_domain', 'pb_aff_domain_nonce' ); ?>
-							<input type="hidden" name="pb_aff_domain_action" value="remove" />
-							<input type="hidden" name="pb_aff_domain_host" value="<?php echo esc_attr( $pb_aff_host ); ?>" />
-							<button type="submit" class="button woocommerce-Button pb-aff-btn--danger"><?php esc_html_e( 'Excluir', 'pb-affiliates' ); ?></button>
-						</form>
-					</div>
-				</td>
-			</tr>
-				<?php if ( ! $pb_aff_verified && $pb_aff_file_path && $pb_aff_token ) : ?>
-			<tr class="pb-aff-domain-table__instructions">
-				<td colspan="3">
-					<p class="description">
-						<?php esc_html_e( 'Arquivo (URL exata):', 'pb-affiliates' ); ?>
-						<a href="<?php echo esc_url( $pb_aff_file_path ); ?>" target="_blank" rel="noopener noreferrer"><?php echo esc_html( $pb_aff_file_path ); ?></a>
-					</p>
-					<p class="description">
-						<?php esc_html_e( 'Conteúdo do arquivo (texto puro, uma linha):', 'pb-affiliates' ); ?>
-						<code><?php echo esc_html( $pb_aff_token ); ?></code>
-					</p>
-				</td>
-			</tr>
-				<?php endif; ?>
-				<?php
-			}
-			?>
-		</tbody>
-	</table>
-<?php endif; ?>
+<p class="description"><a href="<?php echo esc_url( wc_get_account_endpoint_url( PB_Affiliates_Account::ENDPOINT_LINKS ) ); ?>"><?php esc_html_e( 'Identificador, link de indicação e domínios de referência', 'pb-affiliates' ); ?></a></p>
 
 <?php
-$edit_account_url = wc_get_account_endpoint_url( 'edit-account' );
+$edit_account_url              = wc_get_account_endpoint_url( 'edit-account' );
+$pb_aff_bank_dashboard_lines   = isset( $pb_aff_bank_dashboard_lines ) && is_array( $pb_aff_bank_dashboard_lines ) ? $pb_aff_bank_dashboard_lines : array();
+$pb_aff_pagbank_account_id     = isset( $pb_aff_pagbank_account_id ) ? (string) $pb_aff_pagbank_account_id : '';
+$pb_aff_split_receipt_ready    = ! empty( $pb_aff_split_receipt_ready );
 ?>
-<?php if ( 'split' === ( PB_Affiliates_Settings::get()['payment_mode'] ?? 'manual' ) ) : ?>
-	<h3><?php esc_html_e( 'Conta PagBank (recebimento)', 'pb-affiliates' ); ?></h3>
-	<p>
-		<?php esc_html_e( 'Informe seu Account ID PagBank em Detalhes da conta para receber comissões via split.', 'pb-affiliates' ); ?>
-		<a href="<?php echo esc_url( $edit_account_url ); ?>"><?php esc_html_e( 'Editar dados de recebimento', 'pb-affiliates' ); ?></a>
+<section class="pb-aff-dashboard-receipt" aria-labelledby="pb-aff-receipt-title">
+<?php if ( 'split' === $pb_aff_payment_mode ) : ?>
+	<h3 id="pb-aff-receipt-title"><?php esc_html_e( 'Conta PagBank (recebimento)', 'pb-affiliates' ); ?></h3>
+	<?php if ( ! $pb_aff_split_receipt_ready ) : ?>
+		<div class="woocommerce-error pb-aff-receipt-alert" role="alert">
+			<div class="pb-aff-receipt-alert__body">
+				<strong><?php esc_html_e( 'Informe seus dados de pagamento para receber suas comissões', 'pb-affiliates' ); ?></strong>
+				<p><?php echo wp_kses_post( __( 'Sem informar seu account id PagBank os pagamentos <strong>não</strong> serão repassados pra você. Informe agora. É rápido e fácil.', 'pb-affiliates' ) ); ?></p>
+			</div>
+		</div>
+	<?php endif; ?>
+	<?php if ( $pb_aff_split_receipt_ready ) : ?>
+		<dl class="pb-aff-receipt-summary">
+			<dt><?php esc_html_e( 'Account ID PagBank', 'pb-affiliates' ); ?></dt>
+			<dd><code class="pb-aff-receipt-summary__code"><?php echo esc_html( $pb_aff_pagbank_account_id ); ?></code></dd>
+		</dl>
+	<?php elseif ( '' !== $pb_aff_pagbank_account_id ) : ?>
+		<p class="description"><?php esc_html_e( 'O valor informado ainda não está no formato aceito (ACCO_ seguido do UUID). Ajuste em Detalhes da conta.', 'pb-affiliates' ); ?></p>
+		<p><code class="pb-aff-receipt-summary__code pb-aff-receipt-summary__code--invalid"><?php echo esc_html( $pb_aff_pagbank_account_id ); ?></code></p>
+	<?php endif; ?>
+	<p class="pb-aff-receipt-actions">
+		<a class="button woocommerce-Button pb-aff-btn--secondary" href="<?php echo esc_url( $edit_account_url ); ?>"><?php esc_html_e( 'Editar dados de recebimento', 'pb-affiliates' ); ?></a>
 	</p>
 <?php else : ?>
-	<h3><?php esc_html_e( 'Dados bancários', 'pb-affiliates' ); ?></h3>
-	<p>
-		<?php esc_html_e( 'Informe banco, agência, conta e CPF/CNPJ em Detalhes da conta para pagamentos manuais.', 'pb-affiliates' ); ?>
-		<a href="<?php echo esc_url( $edit_account_url ); ?>"><?php esc_html_e( 'Editar dados de recebimento', 'pb-affiliates' ); ?></a>
+	<h3 id="pb-aff-receipt-title"><?php esc_html_e( 'Dados bancários', 'pb-affiliates' ); ?></h3>
+	<?php if ( empty( $pb_aff_bank_dashboard_lines ) ) : ?>
+		<p><?php esc_html_e( 'Informe banco, agência, conta e CPF/CNPJ em Detalhes da conta para pagamentos manuais.', 'pb-affiliates' ); ?></p>
+	<?php else : ?>
+		<ul class="pb-aff-receipt-summary-list">
+			<?php foreach ( $pb_aff_bank_dashboard_lines as $pb_aff_bank_line ) : ?>
+				<li><?php echo esc_html( $pb_aff_bank_line ); ?></li>
+			<?php endforeach; ?>
+		</ul>
+	<?php endif; ?>
+	<p class="pb-aff-receipt-actions">
+		<a class="button woocommerce-Button pb-aff-btn--secondary" href="<?php echo esc_url( $edit_account_url ); ?>"><?php esc_html_e( 'Editar dados de recebimento', 'pb-affiliates' ); ?></a>
 	</p>
 <?php endif; ?>
-
-<script>
-(function(){
-	var btn = document.getElementById('pb-aff-copy-link-btn');
-	var inp = document.getElementById('pb-aff-referral-link');
-	if (!btn || !inp) return;
-	btn.addEventListener('click', function() {
-		inp.focus();
-		inp.select();
-		inp.setSelectionRange(0, 99999);
-		var done = btn.getAttribute('data-label-done') || 'OK';
-		var orig = btn.textContent;
-		function feedback() {
-			btn.textContent = done;
-			btn.disabled = true;
-			setTimeout(function() {
-				btn.textContent = orig;
-				btn.disabled = false;
-			}, 2000);
-		}
-		if (navigator.clipboard && navigator.clipboard.writeText) {
-			navigator.clipboard.writeText(inp.value).then(feedback).catch(function() {
-				try {
-					document.execCommand('copy');
-					feedback();
-				} catch (e) {}
-			});
-		} else {
-			try {
-				document.execCommand('copy');
-				feedback();
-			} catch (e) {}
-		}
-	});
-})();
-</script>
+</section>

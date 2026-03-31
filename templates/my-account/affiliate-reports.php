@@ -21,6 +21,12 @@
 
 defined( 'ABSPATH' ) || exit;
 
+$pb_aff_nav_active = isset( $pb_aff_nav_active ) ? (string) $pb_aff_nav_active : 'reports';
+$pb_aff_materials_url = isset( $pb_aff_materials_url ) ? (string) $pb_aff_materials_url : '';
+$pb_aff_has_promo_materials = ! empty( $pb_aff_has_promo_materials );
+
+include PB_AFFILIATES_PATH . 'templates/my-account/parts/affiliate-hub-nav.php';
+
 $recent_hits = isset( $recent_hits ) && is_array( $recent_hits ) ? $recent_hits : array();
 $orders      = isset( $orders ) && is_array( $orders ) ? $orders : array();
 $user_id     = isset( $user_id ) ? (int) $user_id : get_current_user_id();
@@ -236,10 +242,10 @@ window.addEventListener('load', function () {
 			</p>
 			<div class="pb-aff-pagination__links">
 				<?php if ( $clicks_page > 1 ) : ?>
-					<a class="button" href="<?php echo $pb_rep_url( array( 'pb_c' => $clicks_page - 1 ) ); ?>"><?php esc_html_e( 'Anterior', 'pb-affiliates' ); ?></a>
+					<a class="button" href="<?php echo esc_url( $pb_rep_url( array( 'pb_c' => $clicks_page - 1 ) ) ); ?>"><?php esc_html_e( 'Anterior', 'pb-affiliates' ); ?></a>
 				<?php endif; ?>
 				<?php if ( $clicks_page < $clicks_max_pages ) : ?>
-					<a class="button" href="<?php echo $pb_rep_url( array( 'pb_c' => $clicks_page + 1 ) ); ?>"><?php esc_html_e( 'Próximo', 'pb-affiliates' ); ?></a>
+					<a class="button" href="<?php echo esc_url( $pb_rep_url( array( 'pb_c' => $clicks_page + 1 ) ) ); ?>"><?php esc_html_e( 'Próximo', 'pb-affiliates' ); ?></a>
 				<?php endif; ?>
 			</div>
 		</nav>
@@ -281,7 +287,7 @@ window.addEventListener('load', function () {
 					}
 				} elseif ( $pb_aff_preview && $pb_aff_preview['amount'] > 0 ) {
 					$pb_aff_comm_label  = wp_kses_post( wc_price( $pb_aff_preview['amount'], array( 'currency' => $pb_aff_order->get_currency() ) ) );
-					$pb_aff_comm_label .= ' <span class="pb-aff-badge pb-aff-badge--estimate">' . esc_html__( 'Estimativa', 'pb-affiliates' ) . '</span>';
+					$pb_aff_comm_label .= ' <span class="pb-aff-badge pb-aff-badge--estimate">' . esc_html__( 'Pedido pendente', 'pb-affiliates' ) . '</span>';
 				} elseif ( $pb_aff_preview && $pb_aff_preview['amount'] <= 0 ) {
 					$pb_aff_comm_label = '—';
 				} else {
@@ -327,10 +333,10 @@ window.addEventListener('load', function () {
 			</p>
 			<div class="pb-aff-pagination__links">
 				<?php if ( $orders_page > 1 ) : ?>
-					<a class="button" href="<?php echo $pb_rep_url( array( 'pb_o' => $orders_page - 1 ) ); ?>"><?php esc_html_e( 'Anterior', 'pb-affiliates' ); ?></a>
+					<a class="button" href="<?php echo esc_url( $pb_rep_url( array( 'pb_o' => $orders_page - 1 ) ) ); ?>"><?php esc_html_e( 'Anterior', 'pb-affiliates' ); ?></a>
 				<?php endif; ?>
 				<?php if ( $orders_page < $orders_max_pages ) : ?>
-					<a class="button" href="<?php echo $pb_rep_url( array( 'pb_o' => $orders_page + 1 ) ); ?>"><?php esc_html_e( 'Próximo', 'pb-affiliates' ); ?></a>
+					<a class="button" href="<?php echo esc_url( $pb_rep_url( array( 'pb_o' => $orders_page + 1 ) ) ); ?>"><?php esc_html_e( 'Próximo', 'pb-affiliates' ); ?></a>
 				<?php endif; ?>
 			</div>
 		</nav>

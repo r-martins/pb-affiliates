@@ -53,6 +53,7 @@ class PB_Affiliates_Admin_Affiliates {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			return;
 		}
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- List screen: GET is only for filters/pagination/notices; approve/reject uses POST with nonce in handle_post().
 		$filter = isset( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET['status'] ) ) : 'all';
 		if ( ! in_array( $filter, array( 'all', 'pending', 'active', 'none' ), true ) ) {
 			$filter = 'all';
@@ -185,6 +186,7 @@ class PB_Affiliates_Admin_Affiliates {
 				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Afiliado rejeitado ou removido do programa.', 'pb-affiliates' ) . '</p></div>';
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		?>
 		<div class="wrap woocommerce">
 			<h1 class="wp-heading-inline"><?php esc_html_e( 'Afiliados', 'pb-affiliates' ); ?></h1>

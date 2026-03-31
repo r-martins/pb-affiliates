@@ -199,7 +199,11 @@ class PB_Affiliates_Commission {
 			}
 			$suffix = '';
 			if ( ! empty( $parts ) ) {
-				$suffix = ' ' . sprintf( __( '(%s).', 'pb-affiliates' ), implode( '; ', $parts ) );
+				$suffix = ' ' . sprintf(
+					/* translators: %s: semicolon-separated list of rule notes */
+					__( '(%s).', 'pb-affiliates' ),
+					implode( '; ', $parts )
+				);
 			}
 			return sprintf(
 				/* translators: 1: percentage, 2: optional suffix about base rules */
@@ -212,7 +216,11 @@ class PB_Affiliates_Commission {
 			$fix_parts  = array(
 				__( 'categorias de produto podem definir comissões diferentes; se o produto estiver em várias categorias com regra, usa-se a que gerar a menor comissão naquela linha', 'pb-affiliates' ),
 			);
-			$fix_suffix = ' ' . sprintf( __( '(%s).', 'pb-affiliates' ), implode( '; ', $fix_parts ) );
+			$fix_suffix = ' ' . sprintf(
+				/* translators: %s: semicolon-separated list of rule notes */
+				__( '(%s).', 'pb-affiliates' ),
+				implode( '; ', $fix_parts )
+			);
 			return sprintf(
 				/* translators: 1: formatted price (plain), 2: suffix about categories */
 				__( 'Você ganha até %1$s de comissão fixa por pedido pago (valor não pode ultrapassar o valor base da venda). %2$s', 'pb-affiliates' ),
@@ -450,7 +458,8 @@ class PB_Affiliates_Commission {
 		}
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id, affiliate_id, commission_amount, status, payment_method FROM {$table} WHERE id = %d",
+				'SELECT id, affiliate_id, commission_amount, status, payment_method FROM %i WHERE id = %d',
+				$table,
 				$id
 			),
 			ARRAY_A

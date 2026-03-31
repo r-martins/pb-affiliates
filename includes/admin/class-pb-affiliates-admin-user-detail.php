@@ -46,6 +46,12 @@ class PB_Affiliates_Admin_User_Detail {
 
 	const Q_CLK_DIR = 'pba_clk_dir';
 
+	/** @var string Âncora — secção pedidos (paginação / ordenação / filtros). */
+	const ANCHOR_ORDERS = 'pb-aff-user-detail-orders';
+
+	/** @var string Âncora — secção cliques. */
+	const ANCHOR_CLICKS = 'pb-aff-user-detail-clicks';
+
 	/**
 	 * URL da página de detalhe (admin).
 	 *
@@ -66,11 +72,12 @@ class PB_Affiliates_Admin_User_Detail {
 	 * URL da tela de detalhe com parâmetros de pedidos + cliques (valores vazios omitem).
 	 *
 	 * @param int   $user_id User ID.
-	 * @param array $ord     Parâmetros pba_ord_*.
-	 * @param array $clk     Parâmetros pba_clk_*.
+	 * @param array  $ord      Parâmetros pba_ord_*.
+	 * @param array  $clk      Parâmetros pba_clk_*.
+	 * @param string $fragment ID do elemento (sem #); ex. ANCHOR_ORDERS ou ANCHOR_CLICKS.
 	 * @return string
 	 */
-	private static function aud_url( $user_id, array $ord, array $clk ) {
+	private static function aud_url( $user_id, array $ord, array $clk, $fragment = '' ) {
 		$args = array_merge(
 			array(
 				'page'    => self::PAGE_SLUG,
@@ -84,7 +91,12 @@ class PB_Affiliates_Admin_User_Detail {
 				unset( $args[ $k ] );
 			}
 		}
-		return add_query_arg( $args, admin_url( 'admin.php' ) );
+		$url = add_query_arg( $args, admin_url( 'admin.php' ) );
+		$fragment = is_string( $fragment ) ? trim( $fragment ) : '';
+		if ( '' !== $fragment && preg_match( '/^[a-zA-Z][a-zA-Z0-9_-]*$/', $fragment ) ) {
+			$url .= '#' . $fragment;
+		}
+		return $url;
 	}
 
 	/**
@@ -93,7 +105,7 @@ class PB_Affiliates_Admin_User_Detail {
 	 * @return array{ord:array, clk:array}
 	 */
 	private static function parse_list_states() {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- lista só leitura, sem acção destructiva.
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only listing; no destructive actions.
 		$ord = array(
 			self::Q_ORD_P   => max( 1, isset( $_GET[ self::Q_ORD_P ] ) ? absint( wp_unslash( $_GET[ self::Q_ORD_P ] ) ) : 1 ),
 			self::Q_ORD_PP  => max( 5, min( 100, isset( $_GET[ self::Q_ORD_PP ] ) ? absint( wp_unslash( $_GET[ self::Q_ORD_PP ] ) ) : 15 ) ),
@@ -102,7 +114,7 @@ class PB_Affiliates_Admin_User_Detail {
 			self::Q_ORD_DF  => isset( $_GET[ self::Q_ORD_DF ] ) ? sanitize_text_field( wp_unslash( $_GET[ self::Q_ORD_DF ] ) ) : '',
 			self::Q_ORD_DT  => isset( $_GET[ self::Q_ORD_DT ] ) ? sanitize_text_field( wp_unslash( $_GET[ self::Q_ORD_DT ] ) ) : '',
 			self::Q_ORD_OB  => isset( $_GET[ self::Q_ORD_OB ] ) ? sanitize_key( wp_unslash( $_GET[ self::Q_ORD_OB ] ) ) : 'date',
-			self::Q_ORD_DIR => isset( $_GET[ self::Q_ORD_DIR ] ) && 'asc' === strtolower( (string) wp_unslash( $_GET[ self::Q_ORD_DIR ] ) ) ? 'ASC' : 'DESC',
+			self::Q_ORD_DIR => isset( $_GET[ self::Q_ORD_DIR ] ) && 'asc' === strtolower( sanitize_text_field( wp_unslash( $_GET[ self::Q_ORD_DIR ] ) ) ) ? 'ASC' : 'DESC',
 		);
 		if ( ! in_array( $ord[ self::Q_ORD_OB ], array( 'date', 'total' ), true ) ) {
 			$ord[ self::Q_ORD_OB ] = 'date';
@@ -115,7 +127,7 @@ class PB_Affiliates_Admin_User_Detail {
 			self::Q_CLK_DF  => isset( $_GET[ self::Q_CLK_DF ] ) ? sanitize_text_field( wp_unslash( $_GET[ self::Q_CLK_DF ] ) ) : '',
 			self::Q_CLK_DT  => isset( $_GET[ self::Q_CLK_DT ] ) ? sanitize_text_field( wp_unslash( $_GET[ self::Q_CLK_DT ] ) ) : '',
 			self::Q_CLK_OB  => isset( $_GET[ self::Q_CLK_OB ] ) ? sanitize_key( wp_unslash( $_GET[ self::Q_CLK_OB ] ) ) : 'id',
-			self::Q_CLK_DIR => isset( $_GET[ self::Q_CLK_DIR ] ) && 'asc' === strtolower( (string) wp_unslash( $_GET[ self::Q_CLK_DIR ] ) ) ? 'ASC' : 'DESC',
+			self::Q_CLK_DIR => isset( $_GET[ self::Q_CLK_DIR ] ) && 'asc' === strtolower( sanitize_text_field( wp_unslash( $_GET[ self::Q_CLK_DIR ] ) ) ) ? 'ASC' : 'DESC',
 		);
 		if ( ! in_array( $clk[ self::Q_CLK_OB ], array( 'id', 'hit_at', 'via', 'client_ip' ), true ) ) {
 			$clk[ self::Q_CLK_OB ] = 'id';
@@ -299,6 +311,20 @@ class PB_Affiliates_Admin_User_Detail {
 			'coupon'       => __( 'Cupom no checkout', 'pb-affiliates' ),
 		);
 
+		$dash               = PB_Affiliates_Reports::get_affiliate_dashboard_totals( $uid );
+		$pay_mode           = PB_Affiliates_Settings::get()['payment_mode'] ?? 'manual';
+		$withdraw_avail     = PB_Affiliates_Withdrawal::get_available_balance( $uid );
+		$withdraw_pending   = PB_Affiliates_Withdrawal::has_pending_request( $uid );
+		$min_withdraw       = (float) ( PB_Affiliates_Settings::get()['manual_min_withdrawal'] ?? 0 );
+		$d_orders           = isset( $dash->orders ) ? (int) $dash->orders : 0;
+		$d_total            = isset( $dash->total ) ? (float) $dash->total : 0.0;
+		$d_pending          = isset( $dash->pending_total ) ? (float) $dash->pending_total : 0.0;
+		$d_paid             = isset( $dash->paid_total ) ? (float) $dash->paid_total : 0.0;
+		$d_est              = isset( $dash->estimated_total ) ? (float) $dash->estimated_total : 0.0;
+		$d_est_count        = isset( $dash->estimated_count ) ? (int) $dash->estimated_count : 0;
+		$d_total_incl       = isset( $dash->total_with_estimates ) ? (float) $dash->total_with_estimates : $d_total + $d_est;
+		$d_pending_incl     = isset( $dash->pending_with_estimates ) ? (float) $dash->pending_with_estimates : $d_pending + $d_est;
+
 		?>
 		<div class="wrap woocommerce pb-aff-user-detail">
 			<p class="pb-aff-user-detail__back">
@@ -332,9 +358,93 @@ class PB_Affiliates_Admin_User_Detail {
 				</p>
 			</div>
 
-			<h2><?php esc_html_e( 'Pedidos com atribuição a este afiliado', 'pb-affiliates' ); ?></h2>
+			<div class="pb-aff-user-detail__balances">
+				<h2><?php esc_html_e( 'Saldos de comissão', 'pb-affiliates' ); ?></h2>
+				<p class="description pb-aff-user-detail__balances-intro">
+					<?php esc_html_e( 'Valores alinhados ao painel do afiliado: comissão registrada na loja, valor previsto em pedidos pendentes (atribuídos sem comissão registrada ainda), e repasses já marcados como pagos.', 'pb-affiliates' ); ?>
+				</p>
+				<table class="widefat striped pb-aff-user-detail__balances-table">
+					<tbody>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Pedidos com comissão', 'pb-affiliates' ); ?></th>
+							<td><?php echo esc_html( (string) (int) $d_orders ); ?></td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Total registrado', 'pb-affiliates' ); ?></th>
+							<td><?php echo wp_kses_post( wc_price( $d_total ) ); ?></td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Pendente de repasse (registrado)', 'pb-affiliates' ); ?></th>
+							<td><?php echo wp_kses_post( wc_price( $d_pending ) ); ?></td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Pago ao afiliado', 'pb-affiliates' ); ?></th>
+							<td><?php echo wp_kses_post( wc_price( $d_paid ) ); ?></td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Pedidos pendentes', 'pb-affiliates' ); ?></th>
+							<td>
+								<?php echo wp_kses_post( wc_price( $d_est ) ); ?>
+								<?php if ( $d_est_count > 0 ) : ?>
+									<span class="description">(
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: %d: order count */
+											_n( '%d pedido', '%d pedidos', $d_est_count, 'pb-affiliates' ),
+											$d_est_count
+										)
+									);
+									?>
+									)</span>
+								<?php endif; ?>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Total (registrado + pedidos pendentes)', 'pb-affiliates' ); ?></th>
+							<td><strong><?php echo wp_kses_post( wc_price( $d_total_incl ) ); ?></strong></td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Pendente (registrado + pedidos pendentes)', 'pb-affiliates' ); ?></th>
+							<td><strong><?php echo wp_kses_post( wc_price( $d_pending_incl ) ); ?></strong></td>
+						</tr>
+						<?php if ( 'manual' === $pay_mode ) : ?>
+						<tr class="pb-aff-user-detail__balances-manual">
+							<th scope="row"><?php esc_html_e( 'Saldo disponível para saque', 'pb-affiliates' ); ?></th>
+							<td>
+								<?php echo wp_kses_post( wc_price( $withdraw_avail ) ); ?>
+								<?php if ( $min_withdraw > 0 ) : ?>
+									<p class="description" style="margin:0.35em 0 0">
+										<?php
+										echo esc_html(
+											sprintf(
+												/* translators: %s: minimum amount */
+												__( 'Mínimo configurado para solicitar saque: %s.', 'pb-affiliates' ),
+												wp_strip_all_tags( wc_price( $min_withdraw ) )
+											)
+										);
+										?>
+									</p>
+								<?php endif; ?>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Saque em análise', 'pb-affiliates' ); ?></th>
+							<td><?php echo $withdraw_pending ? esc_html__( 'Sim', 'pb-affiliates' ) : esc_html__( 'Não', 'pb-affiliates' ); ?></td>
+						</tr>
+						<?php endif; ?>
+					</tbody>
+				</table>
+				<?php if ( 'split' === $pay_mode ) : ?>
+					<p class="description pb-aff-user-detail__balances-foot">
+						<?php esc_html_e( 'Modo de pagamento split (PagBank): o repasse costuma ocorrer via split; estes totais refletem o registrado na loja. Saques manuais na lista acima podem coexistir se a loja registrou pagamentos fora do split.', 'pb-affiliates' ); ?>
+					</p>
+				<?php endif; ?>
+			</div>
 
-			<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="pb-aff-user-detail__filters">
+			<h2 id="<?php echo esc_attr( self::ANCHOR_ORDERS ); ?>" class="pb-aff-user-detail__section-title"><?php esc_html_e( 'Pedidos com atribuição a este afiliado', 'pb-affiliates' ); ?></h2>
+
+			<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>#<?php echo esc_attr( self::ANCHOR_ORDERS ); ?>" class="pb-aff-user-detail__filters">
 				<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_SLUG ); ?>" />
 				<input type="hidden" name="user_id" value="<?php echo (int) $uid; ?>" />
 				<?php
@@ -399,7 +509,7 @@ class PB_Affiliates_Admin_User_Detail {
 								$ord_sort_date[ self::Q_ORD_DIR ] = self::next_sort_dir( 'date', $ord[ self::Q_ORD_OB ], $ord[ self::Q_ORD_DIR ] );
 								$ord_sort_date[ self::Q_ORD_P ]   = 1;
 								?>
-								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_sort_date, $clk_state ) ); ?>">
+								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_sort_date, $clk_state, self::ANCHOR_ORDERS ) ); ?>">
 									<?php echo esc_html__( 'Data', 'pb-affiliates' ) . esc_html( self::sort_indicator( 'date', $ord[ self::Q_ORD_OB ], $ord[ self::Q_ORD_DIR ] ) ); ?>
 								</a>
 							</th>
@@ -411,7 +521,7 @@ class PB_Affiliates_Admin_User_Detail {
 								$ord_sort_tot[ self::Q_ORD_DIR ] = self::next_sort_dir( 'total', $ord[ self::Q_ORD_OB ], $ord[ self::Q_ORD_DIR ] );
 								$ord_sort_tot[ self::Q_ORD_P ]   = 1;
 								?>
-								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_sort_tot, $clk_state ) ); ?>">
+								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_sort_tot, $clk_state, self::ANCHOR_ORDERS ) ); ?>">
 									<?php echo esc_html__( 'Total', 'pb-affiliates' ) . esc_html( self::sort_indicator( 'total', $ord[ self::Q_ORD_OB ], $ord[ self::Q_ORD_DIR ] ) ); ?>
 								</a>
 							</th>
@@ -484,15 +594,15 @@ class PB_Affiliates_Admin_User_Detail {
 					function ( $p ) use ( $uid, $clk_state, $ord_state ) {
 						$o = $ord_state;
 						$o[ self::Q_ORD_P ] = (int) $p;
-						return self::aud_url( $uid, $o, $clk_state );
+						return self::aud_url( $uid, $o, $clk_state, self::ANCHOR_ORDERS );
 					}
 				);
 				?>
 			<?php endif; ?>
 
-			<h2 style="margin-top:2em"><?php esc_html_e( 'Cliques registrados', 'pb-affiliates' ); ?></h2>
+			<h2 id="<?php echo esc_attr( self::ANCHOR_CLICKS ); ?>" style="margin-top:2em" class="pb-aff-user-detail__section-title"><?php esc_html_e( 'Cliques registrados', 'pb-affiliates' ); ?></h2>
 
-			<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" class="pb-aff-user-detail__filters">
+			<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>#<?php echo esc_attr( self::ANCHOR_CLICKS ); ?>" class="pb-aff-user-detail__filters">
 				<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE_SLUG ); ?>" />
 				<input type="hidden" name="user_id" value="<?php echo (int) $uid; ?>" />
 				<?php
@@ -544,7 +654,7 @@ class PB_Affiliates_Admin_User_Detail {
 								$c1[ self::Q_CLK_DIR ] = self::next_sort_dir( 'hit_at', $clk[ self::Q_CLK_OB ], $clk[ self::Q_CLK_DIR ] );
 								$c1[ self::Q_CLK_P ]   = 1;
 								?>
-								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_state, $c1 ) ); ?>">
+								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_state, $c1, self::ANCHOR_CLICKS ) ); ?>">
 									<?php echo esc_html__( 'Data e hora', 'pb-affiliates' ) . esc_html( self::sort_indicator( 'hit_at', $clk[ self::Q_CLK_OB ], $clk[ self::Q_CLK_DIR ] ) ); ?>
 								</a>
 							</th>
@@ -555,7 +665,7 @@ class PB_Affiliates_Admin_User_Detail {
 								$c2[ self::Q_CLK_DIR ] = self::next_sort_dir( 'via', $clk[ self::Q_CLK_OB ], $clk[ self::Q_CLK_DIR ] );
 								$c2[ self::Q_CLK_P ]   = 1;
 								?>
-								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_state, $c2 ) ); ?>">
+								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_state, $c2, self::ANCHOR_CLICKS ) ); ?>">
 									<?php echo esc_html__( 'Origem', 'pb-affiliates' ) . esc_html( self::sort_indicator( 'via', $clk[ self::Q_CLK_OB ], $clk[ self::Q_CLK_DIR ] ) ); ?>
 								</a>
 							</th>
@@ -566,7 +676,7 @@ class PB_Affiliates_Admin_User_Detail {
 								$c3[ self::Q_CLK_DIR ] = self::next_sort_dir( 'client_ip', $clk[ self::Q_CLK_OB ], $clk[ self::Q_CLK_DIR ] );
 								$c3[ self::Q_CLK_P ]   = 1;
 								?>
-								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_state, $c3 ) ); ?>">
+								<a href="<?php echo esc_url( self::aud_url( $uid, $ord_state, $c3, self::ANCHOR_CLICKS ) ); ?>">
 									<?php echo esc_html__( 'IP', 'pb-affiliates' ) . esc_html( self::sort_indicator( 'client_ip', $clk[ self::Q_CLK_OB ], $clk[ self::Q_CLK_DIR ] ) ); ?>
 								</a>
 							</th>
@@ -634,13 +744,19 @@ class PB_Affiliates_Admin_User_Detail {
 					function ( $p ) use ( $uid, $clk_state, $ord_state ) {
 						$c = $clk_state;
 						$c[ self::Q_CLK_P ] = (int) $p;
-						return self::aud_url( $uid, $ord_state, $c );
+						return self::aud_url( $uid, $ord_state, $c, self::ANCHOR_CLICKS );
 					}
 				);
 				?>
 			<?php endif; ?>
 		</div>
 		<style>
+			.pb-aff-user-detail__balances{margin:1.25em 0 2em}
+			.pb-aff-user-detail__balances-intro{max-width:720px;margin:0 0 10px}
+			.pb-aff-user-detail__balances-table{max-width:720px;margin-top:8px}
+			.pb-aff-user-detail__balances-table th{width:14rem;font-weight:600;text-align:left;vertical-align:top;padding:10px 12px}
+			.pb-aff-user-detail__balances-table td{vertical-align:top;padding:10px 12px}
+			.pb-aff-user-detail__balances-foot{max-width:720px;margin:10px 0 0}
 			.pb-aff-user-detail__summary{max-width:640px;margin:1em 0 1.5em;padding:12px 14px;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px}
 			.pb-aff-user-detail__summary p{margin:.35em 0}
 			.pb-aff-user-detail__back{margin:.5em 0}
@@ -650,6 +766,7 @@ class PB_Affiliates_Admin_User_Detail {
 			.pb-aff-filter-field span{font-size:12px;color:#50575e}
 			.pb-aff-list-meta{color:#50575e;margin:.75em 0}
 			.pb-aff-user-detail thead th a{text-decoration:none}
+			.pb-aff-user-detail h2.pb-aff-user-detail__section-title{scroll-margin-top:48px}
 		</style>
 		<?php
 	}

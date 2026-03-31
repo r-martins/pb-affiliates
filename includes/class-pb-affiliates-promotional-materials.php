@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class PB_Affiliates_Promotional_Materials {
 
-	const POST_TYPE = 'pb_aff_promo_material';
+	const POST_TYPE = 'pb_aff_promo_mat';
 
 	const META_ATTACHMENT_ID = '_pb_aff_attachment_id';
 
@@ -65,10 +65,11 @@ class PB_Affiliates_Promotional_Materials {
 			return;
 		}
 		$use_subdir = false;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Same request as wp_ajax_upload-attachment; core verifies nonce before handlers run.
 		if ( ! empty( $_POST['pb_aff_promo_upload'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['pb_aff_promo_upload'] ) ) ) {
 			$use_subdir = true;
 		} elseif ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
-			$ref = wp_unslash( $_SERVER['HTTP_REFERER'] );
+			$ref = esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
 			if ( is_string( $ref ) && str_contains( $ref, 'page=pb-affiliates-materials' ) ) {
 				$use_subdir = true;
 			}
@@ -213,7 +214,7 @@ class PB_Affiliates_Promotional_Materials {
 	/**
 	 * Guarda material (criar ou atualizar).
 	 *
-	 * @param array $data title, attachment_id, menu_order, material_id (0 = novo), material_date (Y-m-d H:i:s opcional).
+	 * @param array $data title, attachment_id, menu_order, material_id (0 = novo).
 	 * @return int|WP_Error Post ID ou erro.
 	 */
 	public static function save( array $data ) {
@@ -235,14 +236,6 @@ class PB_Affiliates_Promotional_Materials {
 		$menu_order = isset( $data['menu_order'] ) ? (int) $data['menu_order'] : 0;
 		$id         = isset( $data['material_id'] ) ? absint( $data['material_id'] ) : 0;
 
-		$post_date = '';
-		if ( ! empty( $data['material_date'] ) ) {
-			$ts = pb_aff_promo_parse_admin_datetime( $data['material_date'] );
-			if ( is_string( $ts ) ) {
-				$post_date = $ts;
-			}
-		}
-
 		$postarr = array(
 			'post_type'   => self::POST_TYPE,
 			'post_title'  => $title,
@@ -250,11 +243,6 @@ class PB_Affiliates_Promotional_Materials {
 			'menu_order'  => $menu_order,
 			'post_author' => get_current_user_id(),
 		);
-		if ( '' !== $post_date ) {
-			$postarr['post_date']     = $post_date;
-			$postarr['post_date_gmt'] = get_gmt_from_date( $post_date );
-			$postarr['edit_date']     = true;
-		}
 
 		if ( $id > 0 ) {
 			$existing = get_post( $id );
@@ -264,9 +252,6 @@ class PB_Affiliates_Promotional_Materials {
 			$postarr['ID'] = $id;
 			$result        = wp_update_post( wp_slash( $postarr ), true );
 		} else {
-			if ( '' === $post_date ) {
-				unset( $postarr['post_date'], $postarr['post_date_gmt'], $postarr['edit_date'] );
-			}
 			$result = wp_insert_post( wp_slash( $postarr ), true );
 		}
 
@@ -293,31 +278,5 @@ class PB_Affiliates_Promotional_Materials {
 			return false;
 		}
 		return (bool) wp_delete_post( $material_id, true );
-	}
-}
-
-if ( ! function_exists( 'pb_aff_promo_parse_admin_datetime' ) ) {
-	/**
-	 * Converte string de data (admin) para mysql.
-	 *
-	 * @param mixed $raw Data enviada.
-	 * @return string|false
-	 */
-	function pb_aff_promo_parse_admin_datetime( $raw ) {
-		if ( ! is_string( $raw ) ) {
-			return false;
-		}
-		$raw = trim( $raw );
-		if ( '' === $raw ) {
-			return false;
-		}
-		$d = date_create_from_format( 'Y-m-d H:i', $raw, wp_timezone() );
-		if ( ! $d ) {
-			$d = date_create_from_format( 'Y-m-d\TH:i', $raw, wp_timezone() );
-		}
-		if ( ! $d ) {
-			return false;
-		}
-		return $d->format( 'Y-m-d H:i:s' );
 	}
 }

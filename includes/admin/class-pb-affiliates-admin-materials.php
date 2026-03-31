@@ -127,11 +127,10 @@ class PB_Affiliates_Admin_Materials {
 		}
 
 		$data = array(
-			'title'          => isset( $_POST['pb_aff_material_title'] ) ? wp_unslash( $_POST['pb_aff_material_title'] ) : '',
-			'attachment_id'  => isset( $_POST['pb_aff_material_attachment_id'] ) ? absint( $_POST['pb_aff_material_attachment_id'] ) : 0,
-			'menu_order'     => isset( $_POST['pb_aff_material_order'] ) ? (int) $_POST['pb_aff_material_order'] : 0,
-			'material_id'    => isset( $_POST['pb_aff_material_id'] ) ? absint( $_POST['pb_aff_material_id'] ) : 0,
-			'material_date'  => isset( $_POST['pb_aff_material_date'] ) ? wp_unslash( $_POST['pb_aff_material_date'] ) : '',
+			'title'         => isset( $_POST['pb_aff_material_title'] ) ? sanitize_text_field( wp_unslash( $_POST['pb_aff_material_title'] ) ) : '',
+			'attachment_id' => isset( $_POST['pb_aff_material_attachment_id'] ) ? absint( $_POST['pb_aff_material_attachment_id'] ) : 0,
+			'menu_order'    => isset( $_POST['pb_aff_material_order'] ) ? (int) $_POST['pb_aff_material_order'] : 0,
+			'material_id'   => isset( $_POST['pb_aff_material_id'] ) ? absint( $_POST['pb_aff_material_id'] ) : 0,
 		);
 
 		$result = PB_Affiliates_Promotional_Materials::save( $data );
@@ -258,12 +257,8 @@ class PB_Affiliates_Admin_Materials {
 			$att_id = (int) get_post_meta( $material_id, PB_Affiliates_Promotional_Materials::META_ATTACHMENT_ID, true );
 		}
 
-		$title       = $post ? get_the_title( $post ) : '';
-		$menu_order  = $post ? (int) $post->menu_order : 0;
-		$date_local  = '';
-		if ( $post ) {
-			$date_local = wp_date( 'Y-m-d\TH:i', strtotime( $post->post_date ) );
-		}
+		$title      = $post ? get_the_title( $post ) : '';
+		$menu_order = $post ? (int) $post->menu_order : 0;
 
 		if ( ! empty( $_GET['pb_aff_material_msg'] ) && 'error' === sanitize_key( wp_unslash( $_GET['pb_aff_material_msg'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 			$err = isset( $_GET['pb_aff_err'] ) ? sanitize_text_field( rawurldecode( wp_unslash( $_GET['pb_aff_err'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -283,13 +278,6 @@ class PB_Affiliates_Admin_Materials {
 					<tr>
 						<th scope="row"><label for="pb_aff_material_title"><?php esc_html_e( 'Nome do material', 'pb-affiliates' ); ?></label></th>
 						<td><input name="pb_aff_material_title" id="pb_aff_material_title" type="text" class="regular-text" required value="<?php echo esc_attr( $title ); ?>" /></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="pb_aff_material_date"><?php esc_html_e( 'Data de cadastro', 'pb-affiliates' ); ?></label></th>
-						<td>
-							<input name="pb_aff_material_date" id="pb_aff_material_date" type="datetime-local" class="regular-text" value="<?php echo esc_attr( $date_local ); ?>" />
-							<p class="description pb-aff-material-date-hint"><?php esc_html_e( 'Usada na listagem. Deixe em branco ao criar para usar a data e hora atuais.', 'pb-affiliates' ); ?></p>
-						</td>
 					</tr>
 					<tr>
 						<th scope="row"><label for="pb_aff_material_order"><?php esc_html_e( 'Ordem de exibição', 'pb-affiliates' ); ?></label></th>

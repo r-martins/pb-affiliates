@@ -38,7 +38,8 @@ class PB_Affiliates_Withdrawal {
 		$table = $wpdb->prefix . 'pagbank_affiliate_withdrawals';
 		$jsons = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT commission_ids_json FROM {$table} WHERE affiliate_id = %d AND status = %s",
+				'SELECT commission_ids_json FROM %i WHERE affiliate_id = %d AND status = %s',
+				$table,
 				$user_id,
 				'pending'
 			)
@@ -90,14 +91,17 @@ class PB_Affiliates_Withdrawal {
 		$locked  = self::get_pending_withdrawal_locked_commission_ids( $user_id );
 		list( $excl_sql, $excl_args ) = self::sql_exclude_commission_ids( $locked );
 
-		$sql = "SELECT COALESCE(SUM(commission_amount), 0) FROM {$table}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter -- $excl_sql is built from absint IDs as %d placeholders only.
+		$sum = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COALESCE(SUM(commission_amount), 0) FROM %i
 				WHERE affiliate_id = %d AND status = %s
-				AND ( payment_method IS NULL OR payment_method = '' OR payment_method = %s )
+				AND ( payment_method IS NULL OR payment_method = \'\' OR payment_method = %s )
 				AND ( available_at IS NULL OR available_at <= %s )
-				{$excl_sql}";
-
-		$args = array_merge( array( $user_id, 'pending', 'manual', $now_gmt ), $excl_args );
-		$sum  = $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
+				' . $excl_sql,
+				...array_merge( array( $table, $user_id, 'pending', 'manual', $now_gmt ), $excl_args )
+			)
+		);
 		return (float) $sum;
 	}
 
@@ -110,9 +114,10 @@ class PB_Affiliates_Withdrawal {
 	public static function has_pending_request( $user_id ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'pagbank_affiliate_withdrawals';
-		$n     = (int) $wpdb->get_var(
+		$n = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE affiliate_id = %d AND status = %s",
+				'SELECT COUNT(*) FROM %i WHERE affiliate_id = %d AND status = %s',
+				$table,
 				$user_id,
 				'pending'
 			)
@@ -133,14 +138,19 @@ class PB_Affiliates_Withdrawal {
 		$locked  = self::get_pending_withdrawal_locked_commission_ids( $affiliate_id );
 		list( $excl_sql, $excl_args ) = self::sql_exclude_commission_ids( $locked );
 
-		$sql  = "SELECT id, commission_amount FROM {$table}
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, commission_amount FROM %i
 				WHERE affiliate_id = %d AND status = %s
-				AND ( payment_method IS NULL OR payment_method = '' OR payment_method = %s )
+				AND ( payment_method IS NULL OR payment_method = \'\' OR payment_method = %s )
 				AND ( available_at IS NULL OR available_at <= %s )
-				{$excl_sql}
-				ORDER BY id ASC";
-		$args = array_merge( array( $affiliate_id, 'pending', 'manual', $now_gmt ), $excl_args );
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A );
+				' . $excl_sql . '
+				ORDER BY id ASC',
+				...array_merge( array( $table, $affiliate_id, 'pending', 'manual', $now_gmt ), $excl_args )
+			),
+			ARRAY_A
+		);
 		return is_array( $rows ) ? $rows : array();
 	}
 
@@ -215,7 +225,7 @@ class PB_Affiliates_Withdrawal {
 		global $wpdb;
 		$table = $wpdb->prefix . 'pagbank_affiliate_withdrawals';
 		$id    = (int) $withdrawal_id;
-		$row   = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ), ARRAY_A );
+		$row   = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', $table, $id ), ARRAY_A );
 		if ( ! $row ) {
 			return new \WP_Error( 'not_found', __( 'Registro não encontrado.', 'pb-affiliates' ) );
 		}
@@ -249,7 +259,8 @@ class PB_Affiliates_Withdrawal {
 
 		$check_sum = 0.0;
 		foreach ( $ids as $cid ) {
-			$amt = $wpdb->get_row( $wpdb->prepare( "SELECT affiliate_id, commission_amount, status, payment_method FROM {$wpdb->prefix}pagbank_affiliate_commissions WHERE id = %d", $cid ), ARRAY_A );
+			$comm_table = $wpdb->prefix . 'pagbank_affiliate_commissions';
+			$amt        = $wpdb->get_row( $wpdb->prepare( 'SELECT affiliate_id, commission_amount, status, payment_method FROM %i WHERE id = %d', $comm_table, $cid ), ARRAY_A );
 			if ( ! $amt || (int) $amt['affiliate_id'] !== $aff_id || 'pending' !== $amt['status'] ) {
 				return new \WP_Error( 'commission', __( 'Uma das comissões deste saque já não está pendente. Verifique Afiliados → Pedidos.', 'pb-affiliates' ) );
 			}
@@ -316,7 +327,8 @@ class PB_Affiliates_Withdrawal {
 		$table = $wpdb->prefix . 'pagbank_affiliate_withdrawals';
 		$rows  = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE affiliate_id = %d AND status = %s ORDER BY processed_at DESC, id DESC LIMIT %d",
+				'SELECT * FROM %i WHERE affiliate_id = %d AND status = %s ORDER BY processed_at DESC, id DESC LIMIT %d',
+				$table,
 				$affiliate_id,
 				'paid',
 				$limit

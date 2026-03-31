@@ -264,10 +264,10 @@ class PB_Affiliates_Admin_Click_Report extends WC_Admin_Report {
 	 */
 	public function render_page() {
 		$ranges = array(
-			'year'       => __( 'Year', 'woocommerce' ),
-			'last_month' => __( 'Last month', 'woocommerce' ),
-			'month'      => __( 'This month', 'woocommerce' ),
-			'7day'       => __( 'Last 7 days', 'woocommerce' ),
+			'year'       => __( 'Ano', 'pb-affiliates' ),
+			'last_month' => __( 'Mês passado', 'pb-affiliates' ),
+			'month'      => __( 'Este mês', 'pb-affiliates' ),
+			'7day'       => __( 'Últimos 7 dias', 'pb-affiliates' ),
 		);
 
 		$current_range = ! empty( $_GET['range'] ) ? sanitize_text_field( wp_unslash( $_GET['range'] ) ) : '7day'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
@@ -649,13 +649,15 @@ class PB_Affiliates_Admin_Click_Report extends WC_Admin_Report {
 		if ( $hide_empty_referer ) {
 			$pb_report_nav_base['pb_hide_empty_referer'] = '1';
 		}
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Report navigation is read-only; dates sanitized like elsewhere on this screen.
 		if ( 'custom' === $current_range && ! empty( $_GET['start_date'] ) && ! empty( $_GET['end_date'] ) ) {
-			$pb_report_nav_base['start_date'] = wc_clean( wp_unslash( $_GET['start_date'] ) );
-			$pb_report_nav_base['end_date']   = wc_clean( wp_unslash( $_GET['end_date'] ) );
+			$pb_report_nav_base['start_date'] = wc_clean( sanitize_text_field( wp_unslash( $_GET['start_date'] ) ) );
+			$pb_report_nav_base['end_date']   = wc_clean( sanitize_text_field( wp_unslash( $_GET['end_date'] ) ) );
 			if ( isset( $_GET['wc_reports_nonce'] ) ) {
 				$pb_report_nav_base['wc_reports_nonce'] = sanitize_text_field( wp_unslash( $_GET['wc_reports_nonce'] ) );
 			}
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		$pb_report_nav_base['pb_ref_sort'] = $ref_sort;
 		$pb_report_nav_base['pb_ref_dir']  = $ref_dir;
 		$pb_report_nav_base['pb_aff_sort'] = $aff_sort;

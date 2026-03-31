@@ -1,5 +1,7 @@
 #!/usr/bin/env php
 <?php
+// phpcs:ignoreFile -- CLI development utility; excluded from distribution ZIP (.distignore).
+
 /**
  * Insere um grande volume de registros fictícios em `pagbank_affiliate_click_log`
  * para testar desempenho dos relatórios admin (agrupamentos, intervalos de data, etc.).
@@ -48,6 +50,10 @@ $dry    = array_key_exists( 'dry-run', $opts );
 $assume = array_key_exists( 'yes', $opts );
 
 require $wp_root . '/wp-load.php';
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit( 1 );
+}
 
 global $wpdb;
 
@@ -185,7 +191,7 @@ while ( $inserted < $count ) {
 			. "', '" . esc_sql( substr( $ip, 0, 45 ) ) . "', '" . esc_sql( $url ) . "', '" . esc_sql( substr( $ref, 0, 190 ) ) . "')";
 	}
 
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- montagem controlada + esc_sql.
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Controlled query build; values passed through esc_sql.
 	$sql = "INSERT INTO `{$table}` (affiliate_id, hit_at, via, client_ip, visited_url, referer_host) VALUES " . implode( ',', $values );
 	$ok  = $wpdb->query( $sql );
 	if ( false === $ok ) {

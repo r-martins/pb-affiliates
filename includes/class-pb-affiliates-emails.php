@@ -22,10 +22,14 @@ class PB_Affiliates_Emails {
 			return;
 		}
 		$to = $user->user_email;
-		/* translators: %s: site name */
-		$subject = $pending
-			? sprintf( __( '[%s] Cadastro de afiliado recebido', 'pb-affiliates' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) )
-			: sprintf( __( '[%s] Bem-vindo ao programa de afiliados', 'pb-affiliates' ), wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ) );
+		$site = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		if ( $pending ) {
+			/* translators: %s: site name */
+			$subject = sprintf( __( '[%s] Cadastro de afiliado recebido', 'pb-affiliates' ), $site );
+		} else {
+			/* translators: %s: site name */
+			$subject = sprintf( __( '[%s] Bem-vindo ao programa de afiliados', 'pb-affiliates' ), $site );
+		}
 
 		$heading = $pending
 			? __( 'Cadastro de afiliado', 'pb-affiliates' )
@@ -51,14 +55,14 @@ class PB_Affiliates_Emails {
 			return;
 		}
 		$to = $user->user_email;
-		/* translators: %s: order number */
 		$subject = sprintf(
+			/* translators: 1: site name, 2: order number */
 			__( '[%1$s] Nova comissão — pedido %2$s', 'pb-affiliates' ),
 			wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES ),
 			$order->get_order_number()
 		);
 		$body = sprintf(
-			// translators: 1: amount HTML, 2: order number, 3: affiliate code.
+			/* translators: 1: commission amount (HTML), 2: order number, 3: affiliate code */
 			__( 'Olá, você tem uma nova comissão de %1$s no pedido %2$s. Código de afiliado: %3$s.', 'pb-affiliates' ),
 			wp_kses_post( wc_price( $amount, array( 'currency' => $order->get_currency() ) ) ),
 			esc_html( $order->get_order_number() ),
@@ -79,6 +83,7 @@ class PB_Affiliates_Emails {
 		}
 		$to = $user->user_email;
 		$subject = sprintf(
+			/* translators: %s: site name */
 			__( '[%s] Comissão paga', 'pb-affiliates' ),
 			wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES )
 		);
@@ -106,11 +111,13 @@ class PB_Affiliates_Emails {
 	protected static function default_registered_body( $user, $pending ) {
 		if ( $pending ) {
 			return sprintf(
+				/* translators: %s: user display name */
 				__( 'Olá %s, seu cadastro de afiliado foi recebido e aguarda aprovação.', 'pb-affiliates' ),
 				$user->display_name
 			);
 		}
 		return sprintf(
+			/* translators: %s: user display name */
 			__( 'Olá %s, seu cadastro de afiliado está ativo.', 'pb-affiliates' ),
 			$user->display_name
 		);

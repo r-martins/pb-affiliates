@@ -27,6 +27,7 @@ $pb_aff_files = array(
 	'class-pb-affiliates-promotional-materials.php',
 	'class-pb-affiliates-reports.php',
 	'class-pb-affiliates-account.php',
+	'class-pb-affiliates-zip1.php',
 	'class-pb-affiliates-bank-combo.php',
 	'admin/class-pb-affiliates-admin-materials.php',
 	'admin/class-pb-affiliates-admin-affiliates.php',

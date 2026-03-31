@@ -1,5 +1,7 @@
 #!/usr/bin/env php
 <?php
+// phpcs:ignoreFile -- CLI development utility; excluded from distribution ZIP (.distignore).
+
 /**
  * Corrige dados de demonstração no log de cliques:
  * - Preenche client_ip e visited_url vazios com valores de exemplo.
@@ -26,6 +28,10 @@ if ( ! is_readable( $wp_root . '/wp-load.php' ) ) {
 }
 
 require $wp_root . '/wp-load.php';
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit( 1 );
+}
 
 global $wpdb;
 

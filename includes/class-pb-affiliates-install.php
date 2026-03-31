@@ -12,7 +12,13 @@ defined( 'ABSPATH' ) || exit;
  */
 class PB_Affiliates_Install {
 
-	const DB_VERSION = '1.1.6';
+	/**
+	 * Versão do esquema guardada em `pb_affiliates_db_version`.
+	 * Alinhada ao semver do plugin; incremente quando houver mudança de tabelas ou migração de dados.
+	 * O upgrade corre quando o valor guardado é diferente desta constante (não usa só version_compare >=),
+	 * o que permite renumerar a linha de versões sem ficar preso a 1.1.x.
+	 */
+	const DB_VERSION = '1.0.0';
 
 	/**
 	 * A loja usa armazenamento de pedidos HPOS (tabelas dedicadas) como modo ativo.
@@ -25,16 +31,40 @@ class PB_Affiliates_Install {
 	}
 
 	/**
-	 * Atualiza tabelas em sites já ativados.
+	 * Atualiza tabelas e aplica migrações de dados quando `pb_affiliates_db_version` ≠ DB_VERSION.
 	 */
 	public static function maybe_upgrade() {
-		$current = get_option( 'pb_affiliates_db_version', '0' );
-		if ( version_compare( (string) $current, self::DB_VERSION, '>=' ) ) {
+		$current = (string) get_option( 'pb_affiliates_db_version', '0' );
+		if ( $current === self::DB_VERSION ) {
 			return;
 		}
+
 		self::create_tables();
+		self::run_data_migrations();
+
 		update_option( 'pb_affiliates_db_version', self::DB_VERSION );
 		flush_rewrite_rules( false );
+	}
+
+	/**
+	 * Migrações idempotentes (dados em posts/opções). Acrescente passos aqui e suba DB_VERSION.
+	 */
+	private static function run_data_migrations() {
+		self::migrate_promo_material_post_type_slug();
+	}
+
+	/**
+	 * CPT legado tinha 21 caracteres; o WordPress permite no máximo 20 desde 4.2.
+	 */
+	private static function migrate_promo_material_post_type_slug() {
+		global $wpdb;
+		$wpdb->update(
+			$wpdb->posts,
+			array( 'post_type' => 'pb_aff_promo_mat' ),
+			array( 'post_type' => 'pb_aff_promo_material' ),
+			array( '%s' ),
+			array( '%s' )
+		);
 	}
 
 	/**
@@ -103,6 +133,7 @@ class PB_Affiliates_Install {
 			'terms_page_id'            => 0,
 			'affiliate_registration'   => 'auto',
 			'commission_recurring'      => 'no',
+			'zip1_shorten_enabled'      => 'yes',
 		);
 	}
 

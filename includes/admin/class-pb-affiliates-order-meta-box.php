@@ -98,7 +98,12 @@ class PB_Affiliates_Order_Meta_Box {
 			<span class="pb-aff-order-sidebar__value">
 				<a href="<?php echo esc_url( $aff_detail ); ?>"><?php echo esc_html( $aff_name ); ?></a>
 				<?php if ( $aff_user ) : ?>
-					<span class="description"> — <?php echo esc_html( sprintf( __( 'ID %d', 'pb-affiliates' ), $aid ) ); ?></span>
+					<span class="description"> —
+					<?php
+					/* translators: %d: WordPress user ID */
+					echo esc_html( sprintf( __( 'ID %d', 'pb-affiliates' ), $aid ) );
+					?>
+					</span>
 				<?php endif; ?>
 			</span>
 

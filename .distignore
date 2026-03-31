@@ -1,0 +1,9 @@
+# Pacote WordPress.org / marketplace — não incluir no ZIP publicado
+.git
+.gitignore
+.gitattributes
+.editorconfig
+**/.DS_Store
+
+# Scripts só para desenvolvimento local (geram dezenas de ERROS no Plugin Check)
+tools/

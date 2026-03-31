@@ -58,7 +58,7 @@ class PB_Affiliates_Admin_Settings {
 			|| 'pb-affiliates-settings' === $hook_suffix ) {
 			return true;
 		}
-		if ( isset( $_GET['page'] ) && 'pb-affiliates-settings' === sanitize_text_field( wp_unslash( $_GET['page'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- apenas identificar tela.
+		if ( isset( $_GET['page'] ) && 'pb-affiliates-settings' === sanitize_text_field( wp_unslash( $_GET['page'] ) ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Screen identification only.
 			global $pagenow;
 			return isset( $pagenow ) && 'admin.php' === $pagenow;
 		}
@@ -112,6 +112,7 @@ class PB_Affiliates_Admin_Settings {
 			'terms_page_id'            => isset( $input['terms_page_id'] ) ? absint( $input['terms_page_id'] ) : 0,
 			'affiliate_registration'   => isset( $input['affiliate_registration'] ) && in_array( $input['affiliate_registration'], array( 'auto', 'manual' ), true ) ? $input['affiliate_registration'] : $old['affiliate_registration'],
 			'commission_recurring'     => self::input_is_yes( $input, 'commission_recurring' ) ? 'yes' : 'no',
+			'zip1_shorten_enabled'     => self::input_is_yes( $input, 'zip1_shorten_enabled' ) ? 'yes' : 'no',
 		);
 
 		if ( 'split' === $out['payment_mode'] && ! PB_Affiliates_Dependencies::can_use_affiliate_split() ) {
@@ -134,8 +135,9 @@ class PB_Affiliates_Admin_Settings {
 	 * @param string $current Current stored yes/no.
 	 * @param string $id Input id.
 	 * @param string $label Label text.
+	 * @param string $hint  Optional linha de ajuda visível (abaixo do toggle).
 	 */
-	private static function render_toggle( $name, $current, $id, $label ) {
+	private static function render_toggle( $name, $current, $id, $label, $hint = '' ) {
 		$opt   = PB_Affiliates_Settings::OPTION;
 		$is_on = in_array( (string) $current, array( 'yes', '1' ), true );
 		?>
@@ -146,10 +148,16 @@ class PB_Affiliates_Admin_Settings {
 				id="<?php echo esc_attr( $id ); ?>"
 				value="yes"
 				<?php checked( $is_on ); ?>
+				<?php if ( '' !== (string) $hint ) : ?>
+				aria-describedby="<?php echo esc_attr( $id ); ?>-hint"
+				<?php endif; ?>
 			/>
 			<span class="pb-aff-toggle__track" aria-hidden="true"></span>
 			<span class="pb-aff-toggle__label"><?php echo esc_html( $label ); ?></span>
 		</label>
+		<?php if ( '' !== (string) $hint ) : ?>
+			<p class="description" id="<?php echo esc_attr( $id ); ?>-hint"><?php echo esc_html( $hint ); ?></p>
+		<?php endif; ?>
 		<?php
 	}
 
@@ -199,6 +207,20 @@ class PB_Affiliates_Admin_Settings {
 								<label><input type="radio" name="<?php echo esc_attr( $o ); ?>[attribution]" value="first" <?php checked( $s['attribution'], 'first' ); ?> /> <?php esc_html_e( 'Primeiro afiliado (first touch)', 'pb-affiliates' ); ?></label><br />
 								<label><input type="radio" name="<?php echo esc_attr( $o ); ?>[attribution]" value="last" <?php checked( $s['attribution'], 'last' ); ?> /> <?php esc_html_e( 'Último afiliado (last touch)', 'pb-affiliates' ); ?></label>
 							</fieldset>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Encurtador de links', 'pb-affiliates' ); ?></th>
+						<td>
+							<?php
+							self::render_toggle(
+								'zip1_shorten_enabled',
+								$s['zip1_shorten_enabled'] ?? 'yes',
+								'pb_aff_zip1_shorten_enabled',
+								__( 'Habilitar', 'pb-affiliates' ),
+								__( 'Usa serviço gratuito zip1.io', 'pb-affiliates' )
+							);
+							?>
 						</td>
 					</tr>
 				</table>
@@ -309,10 +331,11 @@ class PB_Affiliates_Admin_Settings {
 							<?php
 							wp_dropdown_pages(
 								array(
+									// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Setting field name for options.php; wp_dropdown_pages() escapes when rendering.
 									'name'              => $o . '[terms_page_id]',
 									'id'                => 'terms_page_id',
 									'selected'          => (int) $s['terms_page_id'],
-									'show_option_none'  => __( '— Selecionar —', 'pb-affiliates' ),
+									'show_option_none'  => esc_html__( '— Selecionar —', 'pb-affiliates' ),
 									'option_none_value' => '0',
 								)
 							);

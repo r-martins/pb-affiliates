@@ -96,8 +96,9 @@ class PB_Affiliates_Coupon {
 		$id_guess = ctype_digit( $term ) ? (int) $term : 0;
 
 		if ( $id_guess > 0 ) {
-			$sql = $wpdb->prepare(
-				"SELECT DISTINCT u.ID, u.user_email, u.display_name, cd.meta_value AS aff_code
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT DISTINCT u.ID, u.user_email, u.display_name, cd.meta_value AS aff_code
 				FROM {$wpdb->users} u
 				INNER JOIN {$wpdb->usermeta} st ON st.user_id = u.ID AND st.meta_key = %s AND st.meta_value = %s
 				LEFT JOIN {$wpdb->usermeta} cd ON cd.user_id = u.ID AND cd.meta_key = %s
@@ -110,19 +111,21 @@ class PB_Affiliates_Coupon {
 				)
 				ORDER BY u.display_name ASC
 				LIMIT %d",
-				'pb_affiliate_status',
-				PB_Affiliates_Role::STATUS_ACTIVE,
-				'pb_affiliate_code',
-				$id_guess,
-				$like,
-				$like,
-				$like,
-				$like,
-				$limit
+					'pb_affiliate_status',
+					PB_Affiliates_Role::STATUS_ACTIVE,
+					'pb_affiliate_code',
+					$id_guess,
+					$like,
+					$like,
+					$like,
+					$like,
+					$limit
+				)
 			);
 		} else {
-			$sql = $wpdb->prepare(
-				"SELECT DISTINCT u.ID, u.user_email, u.display_name, cd.meta_value AS aff_code
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT DISTINCT u.ID, u.user_email, u.display_name, cd.meta_value AS aff_code
 				FROM {$wpdb->users} u
 				INNER JOIN {$wpdb->usermeta} st ON st.user_id = u.ID AND st.meta_key = %s AND st.meta_value = %s
 				LEFT JOIN {$wpdb->usermeta} cd ON cd.user_id = u.ID AND cd.meta_key = %s
@@ -134,18 +137,17 @@ class PB_Affiliates_Coupon {
 				)
 				ORDER BY u.display_name ASC
 				LIMIT %d",
-				'pb_affiliate_status',
-				PB_Affiliates_Role::STATUS_ACTIVE,
-				'pb_affiliate_code',
-				$like,
-				$like,
-				$like,
-				$like,
-				$limit
+					'pb_affiliate_status',
+					PB_Affiliates_Role::STATUS_ACTIVE,
+					'pb_affiliate_code',
+					$like,
+					$like,
+					$like,
+					$like,
+					$limit
+				)
 			);
 		}
-
-		$rows = $wpdb->get_results( $sql );
 		$out  = array();
 		foreach ( (array) $rows as $row ) {
 			$uid = isset( $row->ID ) ? (int) $row->ID : 0;
@@ -247,7 +249,9 @@ class PB_Affiliates_Coupon {
 	 * @param WC_Coupon $coupon Coupon.
 	 */
 	public static function coupon_save( $post_id, $coupon ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( empty( $_POST['woocommerce_meta_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['woocommerce_meta_nonce'] ) ), 'woocommerce_save_data' ) ) {
+			return;
+		}
 		if ( isset( $_POST['_pb_affiliate_id'] ) ) {
 			$aid = absint( wp_unslash( $_POST['_pb_affiliate_id'] ) );
 			if ( $aid > 0 ) {
@@ -260,7 +264,7 @@ class PB_Affiliates_Coupon {
 			$coupon->update_meta_data( '_pb_affiliate_commission_type', sanitize_text_field( wp_unslash( $_POST['_pb_affiliate_commission_type'] ) ) );
 		}
 		if ( isset( $_POST['_pb_affiliate_commission_value'] ) ) {
-			$coupon->update_meta_data( '_pb_affiliate_commission_value', wc_format_decimal( wp_unslash( $_POST['_pb_affiliate_commission_value'] ) ) );
+			$coupon->update_meta_data( '_pb_affiliate_commission_value', wc_format_decimal( sanitize_text_field( wp_unslash( $_POST['_pb_affiliate_commission_value'] ) ) ) );
 		}
 		$coupon->save_meta_data();
 	}

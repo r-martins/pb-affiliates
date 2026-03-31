@@ -49,6 +49,8 @@ defined( 'ABSPATH' ) || exit;
 
 global $wp_locale;
 
+// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Vista do relatório: GET só para filtros/UI; intervalo customizado validado ao carregar dados (wc_reports_nonce).
+
 ?>
 <div class="wrap pb-aff-wrap pb-aff-click-report woocommerce">
 	<h1 class="wp-heading-inline"><?php esc_html_e( 'Relatórios de afiliados', 'pb-affiliates' ); ?></h1>
@@ -57,13 +59,17 @@ global $wp_locale;
 	<div id="poststuff" class="woocommerce-reports-wide">
 		<div class="postbox">
 			<?php if ( 'custom' === $current_range && isset( $_GET['start_date'], $_GET['end_date'] ) ) : ?>
+				<?php
+				$pb_click_sr_start = sanitize_text_field( wp_unslash( $_GET['start_date'] ) );
+				$pb_click_sr_end   = sanitize_text_field( wp_unslash( $_GET['end_date'] ) );
+				?>
 				<h3 class="screen-reader-text">
 					<?php
 					printf(
 						/* translators: 1: start date 2: end date */
-						esc_html__( 'From %1$s to %2$s', 'woocommerce' ),
-						esc_html( wc_clean( wp_unslash( $_GET['start_date'] ) ) ),
-						esc_html( wc_clean( wp_unslash( $_GET['end_date'] ) ) )
+						esc_html__( 'From %1$s to %2$s', 'pb-affiliates' ),
+						esc_html( $pb_click_sr_start ),
+						esc_html( $pb_click_sr_end )
 					);
 					?>
 				</h3>
@@ -101,11 +107,10 @@ global $wp_locale;
 						</li>
 					<?php endforeach; ?>
 					<li class="custom <?php echo ( 'custom' === $current_range ) ? 'active' : ''; ?>">
-						<?php esc_html_e( 'Custom:', 'woocommerce' ); ?>
+						<?php esc_html_e( 'Custom:', 'pb-affiliates' ); ?>
 						<form method="get">
 							<div>
 								<?php
-								// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 								foreach ( $_GET as $key => $value ) {
 									if ( in_array( $key, array( 'range', 'start_date', 'end_date', 'wc_reports_nonce', 'pb_ref_paged', 'pb_aff_paged', 'pb_ord_paged' ), true ) ) {
 										continue;
@@ -121,10 +126,14 @@ global $wp_locale;
 								?>
 								<input type="hidden" name="page" value="pb-affiliates-report" />
 								<input type="hidden" name="range" value="custom" />
-								<input type="text" size="11" placeholder="yyyy-mm-dd" value="<?php echo ( ! empty( $_GET['start_date'] ) ) ? esc_attr( wp_unslash( $_GET['start_date'] ) ) : ''; ?>" name="start_date" class="range_datepicker from" autocomplete="off" />
+								<?php
+								$pb_click_form_start = isset( $_GET['start_date'] ) ? sanitize_text_field( wp_unslash( $_GET['start_date'] ) ) : '';
+								$pb_click_form_end   = isset( $_GET['end_date'] ) ? sanitize_text_field( wp_unslash( $_GET['end_date'] ) ) : '';
+								?>
+								<input type="text" size="11" placeholder="yyyy-mm-dd" value="<?php echo esc_attr( $pb_click_form_start ); ?>" name="start_date" class="range_datepicker from" autocomplete="off" />
 								<span>&ndash;</span>
-								<input type="text" size="11" placeholder="yyyy-mm-dd" value="<?php echo ( ! empty( $_GET['end_date'] ) ) ? esc_attr( wp_unslash( $_GET['end_date'] ) ) : ''; ?>" name="end_date" class="range_datepicker to" autocomplete="off" />
-								<button type="submit" class="button" value="<?php esc_attr_e( 'Go', 'woocommerce' ); ?>"><?php esc_html_e( 'Go', 'woocommerce' ); ?></button>
+								<input type="text" size="11" placeholder="yyyy-mm-dd" value="<?php echo esc_attr( $pb_click_form_end ); ?>" name="end_date" class="range_datepicker to" autocomplete="off" />
+								<button type="submit" class="button" value="<?php esc_attr_e( 'Go', 'pb-affiliates' ); ?>"><?php esc_html_e( 'Go', 'pb-affiliates' ); ?></button>
 								<?php wp_nonce_field( 'custom_range', 'wc_reports_nonce', false ); ?>
 							</div>
 						</form>
@@ -428,6 +437,9 @@ global $wp_locale;
 								</li>
 								<li>
 									<?php esc_html_e( 'Respeita o mesmo intervalo de datas e o filtro “Afiliado” acima (um afiliado ou todos).', 'pb-affiliates' ); ?>
+								</li>
+							
+									<?php esc_html_e( 'Afiliados com cupom podem apresentar uma taxa de conversão maior.', 'pb-affiliates' ); ?>
 								</li>
 							</ul>
 						</div>
@@ -875,3 +887,4 @@ global $wp_locale;
 		</div>
 	</div>
 </div>
+<?php // phpcs:enable WordPress.Security.NonceVerification.Recommended ?>

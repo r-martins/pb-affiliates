@@ -35,7 +35,10 @@ class PB_Affiliates_Role {
 		if ( ! is_user_logged_in() ) {
 			return $items;
 		}
-		$aff_items = array( 'affiliate-area' => __( 'Área do afiliado', 'pb-affiliates' ) );
+		$aff_items = array(
+			'affiliate-area'  => __( 'Área do afiliado', 'pb-affiliates' ),
+			'affiliate-links' => __( 'Links de afiliados', 'pb-affiliates' ),
+		);
 		return array_merge(
 			array_slice( $items, 0, 1, true ),
 			$aff_items,

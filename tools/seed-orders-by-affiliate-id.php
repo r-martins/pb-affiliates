@@ -1,5 +1,7 @@
 #!/usr/bin/env php
 <?php
+// phpcs:ignoreFile -- CLI development utility; excluded from distribution ZIP (.distignore).
+
 /**
  * Cria pedidos WooCommerce de teste com atribuição e registro de comissão para um afiliado (ID de usuário).
  *
@@ -24,6 +26,10 @@ if ( ! is_readable( $wp_root . '/wp-load.php' ) ) {
 }
 
 require $wp_root . '/wp-load.php';
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit( 1 );
+}
 
 if ( ! function_exists( 'wc_create_order' ) || ! class_exists( 'PB_Affiliates_Commission', false ) ) {
 	fwrite( STDERR, "WooCommerce ou PB Afiliados não está carregado.\n" );

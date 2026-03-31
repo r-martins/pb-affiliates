@@ -1,5 +1,7 @@
 #!/usr/bin/env php
 <?php
+// phpcs:ignoreFile -- CLI development utility; excluded from distribution ZIP (.distignore).
+
 /**
  * Popula dados de demonstração: cliques (`pagbank_affiliate_click_log`) e pedidos WooCommerce
  * com meta `_pb_affiliate_id` / `_pb_affiliate_code` para códigos indicados.
@@ -27,6 +29,10 @@ if ( ! is_readable( $wp_root . '/wp-load.php' ) ) {
 }
 
 require $wp_root . '/wp-load.php';
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit( 1 );
+}
 
 $pb_ref_param = 'pid';
 if ( class_exists( 'PB_Affiliates_Settings' ) ) {

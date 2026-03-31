@@ -54,7 +54,7 @@ class PB_Affiliates_Click_Log {
 			if ( empty( $_SERVER[ $key ] ) ) {
 				continue;
 			}
-			$raw = wp_unslash( $_SERVER[ $key ] );
+			$raw = sanitize_text_field( wp_unslash( $_SERVER[ $key ] ) );
 			$raw = trim( (string) $raw );
 			if ( '' === $raw ) {
 				continue;
@@ -82,7 +82,7 @@ class PB_Affiliates_Click_Log {
 		}
 
 		if ( '' === $chosen && ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
-			$ip = trim( (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
+			$ip = trim( (string) sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) );
 			if ( filter_var( $ip, FILTER_VALIDATE_IP ) ) {
 				$chosen = $ip;
 			}
@@ -109,7 +109,7 @@ class PB_Affiliates_Click_Log {
 			$host = sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) );
 			$uri  = '/';
 			if ( isset( $_SERVER['REQUEST_URI'] ) ) {
-				$uri = wp_unslash( $_SERVER['REQUEST_URI'] );
+				$uri = sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) );
 				$uri = str_replace( array( "\0", "\r", "\n" ), '', (string) $uri );
 				$uri = '' !== $uri ? $uri : '/';
 			}
@@ -139,7 +139,7 @@ class PB_Affiliates_Click_Log {
 		if ( is_array( self::$tracking_context ) && isset( self::$tracking_context['referrer_raw'] ) && (string) self::$tracking_context['referrer_raw'] !== '' ) {
 			$raw = (string) self::$tracking_context['referrer_raw'];
 		} elseif ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
-			$raw = (string) wp_unslash( $_SERVER['HTTP_REFERER'] );
+			$raw = (string) esc_url_raw( wp_unslash( $_SERVER['HTTP_REFERER'] ) );
 		}
 		return self::normalized_log_host_from_referer_raw( $raw );
 	}

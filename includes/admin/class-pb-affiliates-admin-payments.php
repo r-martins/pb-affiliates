@@ -33,7 +33,9 @@ class PB_Affiliates_Admin_Payments {
 			return;
 		}
 		$id    = absint( $_POST['pb_aff_withdrawal_id'] );
-		$proof = isset( $_POST['pb_aff_payment_proof'] ) ? wp_unslash( $_POST['pb_aff_payment_proof'] ) : '';
+		$proof = isset( $_POST['pb_aff_payment_proof'] )
+			? sanitize_textarea_field( wp_unslash( $_POST['pb_aff_payment_proof'] ) )
+			: '';
 		$res   = PB_Affiliates_Withdrawal::mark_paid( $id, $proof );
 		$tab   = isset( $_POST['pb_aff_tab'] ) ? sanitize_key( wp_unslash( $_POST['pb_aff_tab'] ) ) : 'pending';
 		if ( ! in_array( $tab, array( 'pending', 'paid' ), true ) ) {
@@ -85,19 +87,25 @@ class PB_Affiliates_Admin_Payments {
 			echo '—';
 			return;
 		}
-		$cut   = 120;
-		$len   = function_exists( 'mb_strlen' ) ? mb_strlen( $notes ) : strlen( $notes );
-		$esc   = function ( $s ) {
-			return esc_html( (string) $s );
-		};
+		$cut = 120;
+		$len = function_exists( 'mb_strlen' ) ? mb_strlen( $notes ) : strlen( $notes );
 		if ( $len <= $cut ) {
-			echo '<div class="pb-aff-proof-cell" style="max-width:24rem;white-space:pre-wrap;">' . $esc( $notes ) . '</div>';
+			printf(
+				'<div class="pb-aff-proof-cell" style="max-width:24rem;white-space:pre-wrap;">%s</div>',
+				esc_html( $notes )
+			);
 			return;
 		}
 		$preview = function_exists( 'mb_substr' ) ? mb_substr( $notes, 0, $cut ) : substr( $notes, 0, $cut );
 		echo '<details class="pb-aff-proof-expand" style="max-width:24rem;">';
-		echo '<summary style="cursor:pointer;list-style-position:outside;">' . $esc( $preview ) . '…</summary>';
-		echo '<div style="margin-top:0.5em;white-space:pre-wrap;border-left:3px solid #c3c4c7;padding-left:8px;">' . $esc( $notes ) . '</div>';
+		printf(
+			'<summary style="cursor:pointer;list-style-position:outside;">%s…</summary>',
+			esc_html( $preview )
+		);
+		printf(
+			'<div style="margin-top:0.5em;white-space:pre-wrap;border-left:3px solid #c3c4c7;padding-left:8px;">%s</div>',
+			esc_html( $notes )
+		);
 		echo '</details>';
 	}
 
@@ -108,6 +116,7 @@ class PB_Affiliates_Admin_Payments {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			return;
 		}
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Payments list: GET is only for tab and flash notices; POST uses nonce in handle_post().
 		global $wpdb;
 		$table   = $wpdb->prefix . 'pagbank_affiliate_withdrawals';
 		$mode    = PB_Affiliates_Settings::get()['payment_mode'] ?? 'manual';
@@ -121,7 +130,8 @@ class PB_Affiliates_Admin_Payments {
 		$status = 'pending' === $tab ? 'pending' : 'paid';
 		$rows   = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE status = %s ORDER BY id DESC LIMIT 200",
+				'SELECT * FROM %i WHERE status = %s ORDER BY id DESC LIMIT 200',
+				$table,
 				$status
 			),
 			ARRAY_A
@@ -135,6 +145,7 @@ class PB_Affiliates_Admin_Payments {
 			$msg  = self::error_message_for_code( $code );
 			echo '<div class="notice notice-error is-dismissible"><p>' . esc_html( $msg ) . '</p></div>';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		$aggregated = 'pending' === $tab
 			? PB_Affiliates_Reports::get_admin_manual_pending_by_affiliate_display( $now_gmt )

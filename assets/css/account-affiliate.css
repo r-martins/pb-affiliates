@@ -93,7 +93,7 @@
 	color: #3d4a5c;
 }
 
-/* Ícone (i): significado ao hover / foco (nativo via title) */
+/* Ícone ℹ: significado ao hover / foco (nativo via title) */
 
 .woocommerce-MyAccount-content .pb-aff-dashboard-info {
 	display: inline-flex;
@@ -105,11 +105,9 @@
 	line-height: 1;
 	vertical-align: middle;
 	color: var( --wc-primary, #2271b1 );
-	border: 1px solid currentColor;
-	border-radius: 50%;
 	min-width: 1.35em;
 	min-height: 1.35em;
-	padding: 1px;
+	padding: 0;
 	box-sizing: border-box;
 	user-select: none;
 	flex-shrink: 0;
@@ -151,7 +149,7 @@
 }
 
 .woocommerce-MyAccount-content .pb-aff-dashboard-hero__title {
-	margin: 0 0 0.35em;
+	margin: 0 0 1em;
 	font-size: clamp( 1.15rem, 2.5vw, 1.35rem );
 	line-height: 1.25;
 }
@@ -232,14 +230,14 @@
 	margin: 0;
 }
 
-/* Badge / (i) no hero: encostados ao texto; gap vem do flex do label */
+/* Badge / ℹ no hero: encostados ao texto; gap vem do flex do label */
 .woocommerce-MyAccount-content .pb-aff-dashboard-hero__label .pb-aff-badge,
 .woocommerce-MyAccount-content .pb-aff-dashboard-hero__label .pb-aff-dashboard-info {
 	margin-left: 0;
 }
 
 /* -------------------------------------------------------------------------
- * Link de afiliado + ícone (i) no texto introdutório
+ * Link de afiliado + ícone ℹ no texto introdutório
  * ------------------------------------------------------------------------- */
 
 .woocommerce-MyAccount-content .pb-aff-link-row {
@@ -605,3 +603,550 @@ body.woocommerce-account .woocommerce-MyAccount-content table.shop_table.pb-aff-
 .woocommerce-MyAccount-content .pb-aff-dashboard-hero__actions .button + .button {
 	margin-left: 0.5rem;
 }
+
+/* -------------------------------------------------------------------------
+ * Painel: resumo de dados de recebimento (PagBank / banco)
+ * ------------------------------------------------------------------------- */
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-receipt {
+	margin: 2rem 0 1.5rem;
+	padding: 1rem 1.1rem 1.15rem;
+	background: #fafbfc;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-dashboard-receipt > h3 {
+	margin-top: 0;
+}
+
+/* Alinha com .woocommerce-error: ícone via ::before (absolute, left 1.5em) precisa de padding-left ~3.5em. */
+.woocommerce-MyAccount-content .pb-aff-receipt-alert.woocommerce-error {
+	margin: 0 0 1rem;
+	padding: 0.85rem 1rem 0.85rem 3.5em;
+	position: relative;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-alert__body {
+	min-width: 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-alert__body > strong {
+	display: block;
+	margin-bottom: 0.35em;
+	font-size: 0.95rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-alert__body p {
+	margin: 0;
+	font-size: 0.875rem;
+	line-height: 1.45;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-summary {
+	margin: 0 0 0.75rem;
+	display: grid;
+	grid-template-columns: minmax( 6rem, auto ) 1fr;
+	gap: 0.35rem 1rem;
+	align-items: baseline;
+	font-size: 0.9rem;
+	max-width: 40rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-summary dt {
+	margin: 0;
+	font-weight: 600;
+	color: #4a5568;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-summary dd {
+	margin: 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-summary__code {
+	font-size: 0.8rem;
+	padding: 0.2em 0.45em;
+	border-radius: 3px;
+	word-break: break-all;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-summary__code--invalid {
+	background: #fcf0f1;
+	border: 1px solid #dba2a4;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-summary-list {
+	margin: 0 0 0.75rem 1.2rem;
+	padding: 0;
+	font-size: 0.9rem;
+	line-height: 1.45;
+	max-width: 40rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-summary-list li {
+	margin: 0.2em 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-actions {
+	margin: 0.5rem 0 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-receipt-actions .button {
+	margin: 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Hub do afiliado — navegação, métricas de período, painel “app-like”
+ * ------------------------------------------------------------------------- */
+
+.woocommerce-MyAccount-content .pb-aff-hub {
+	margin: 0 0 2rem;
+	padding: 0;
+	max-width: 1040px;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub--subpage {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	width: 100%;
+	max-width: 1040px;
+	margin-bottom: 1rem;
+	box-sizing: border-box;
+}
+
+/* Cada bloco da página (links, materiais) numa coluna total — evita dois painéis lado a lado no tema */
+.woocommerce-MyAccount-content .pb-aff-hub--subpage > * {
+	width: 100%;
+	max-width: 100%;
+	flex: 0 0 auto;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-nav {
+	margin: 0 0 1.25rem;
+	padding: 0 0 0.75rem;
+	border-bottom: 1px solid #e5e7eb;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-nav__list {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.15rem 0.35rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-nav__item {
+	margin: 0;
+	padding: 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-nav__link {
+	display: inline-block;
+	padding: 0.45rem 0.85rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: #475569;
+	text-decoration: none;
+	border-radius: 6px;
+	line-height: 1.25;
+	transition: background 0.15s ease, color 0.15s ease;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-nav__link:hover,
+.woocommerce-MyAccount-content .pb-aff-hub-nav__link:focus {
+	color: #0f766e;
+	background: rgba(14, 116, 144, 0.08);
+	outline: none;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-nav__link.is-active {
+	color: #0f766e;
+	font-weight: 600;
+	box-shadow: inset 0 -2px 0 #0d9488;
+	background: rgba(14, 116, 144, 0.06);
+	border-radius: 6px 6px 0 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-toolbar {
+	margin: 0 0 1.25rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-toolbar__form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 1rem;
+	padding: 0.65rem 1rem;
+	background: #fff;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-toolbar__label {
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: #64748b;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-toolbar__select {
+	max-width: 14rem;
+	font-size: 0.875rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-toolbar__range {
+	font-size: 0.8125rem;
+	color: #64748b;
+	margin-left: auto;
+}
+
+@media ( max-width: 520px ) {
+	.woocommerce-MyAccount-content .pb-aff-hub-toolbar__range {
+		width: 100%;
+		margin-left: 0;
+	}
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-metrics {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 13.5rem, 1fr ) );
+	gap: 1rem;
+	margin: 0 0 1.25rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card {
+	display: flex;
+	flex-direction: column;
+	min-height: 100%;
+	padding: 1rem 1.1rem 0.85rem;
+	background: #fff;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	border-top: 3px solid #0d9488;
+	box-sizing: border-box;
+	box-shadow: 0 1px 2px rgba( 15, 23, 42, 0.04 );
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card--orders {
+	border-top-color: #ea580c;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card--comm {
+	border-top-color: #7c3aed;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.35rem 0.5rem;
+	margin-bottom: 0.35rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card__label {
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #64748b;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card__info {
+	font-size: 0.7rem;
+	margin-right: 0.25rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card__value {
+	margin: 0;
+	font-size: clamp( 1.35rem, 3.5vw, 1.75rem );
+	font-weight: 700;
+	line-height: 1.15;
+	color: #0f172a;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card__value--money .woocommerce-Price-amount {
+	font-weight: inherit;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card__foot {
+	margin: 0.6rem 0 0;
+	padding: 0.55rem 0 0;
+	border-top: 1px solid #f1f5f9;
+	font-size: 0.8125rem;
+	line-height: 1.35;
+	color: #64748b;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card__foot a {
+	font-weight: 500;
+	color: #0d9488;
+	text-decoration: none;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-card__foot a:hover {
+	text-decoration: underline;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-trend {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.75rem;
+	font-weight: 600;
+	padding: 0.15em 0.45em;
+	border-radius: 999px;
+	line-height: 1.2;
+	white-space: nowrap;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-trend--up {
+	background: #ecfdf5;
+	color: #047857;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-trend--down {
+	background: #fef2f2;
+	color: #b91c1c;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-trend--flat {
+	background: #f8fafc;
+	color: #64748b;
+}
+
+.woocommerce-MyAccount-content .pb-aff-metric-trend--na {
+	background: #f8fafc;
+	color: #94a3b8;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-chart.pb-aff-chart-wrap {
+	margin-bottom: 1.75rem;
+	background: #fff;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	padding: 0.75rem 0.5rem 0.5rem;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime {
+	margin: 0;
+	padding: 1.1rem 1.15rem 1.15rem;
+	background: #f8fafc;
+	border: 1px solid #e5e7eb;
+	border-radius: 10px;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__title {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.35rem 0.5rem;
+	margin: 0 0 0.65rem;
+	font-size: 1rem;
+	font-weight: 600;
+	color: #334155;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__hint {
+	margin: -0.25rem 0 0.85rem;
+	font-size: 0.8125rem;
+	color: #64748b;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 11.5rem, 1fr ) );
+	gap: 0.85rem;
+	margin: 0 0 1rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__card {
+	padding: 0.75rem 0.85rem;
+	background: #fff;
+	border: 1px solid #e5e7eb;
+	border-radius: 8px;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__card--total {
+	border-top: 3px solid #0d9488;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__card--pending {
+	border-top: 3px solid #ca8a04;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__card--paid {
+	border-top: 3px solid #16a34a;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__card--visits {
+	border-top: 3px solid #64748b;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__label {
+	font-size: 0.72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: #64748b;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__value {
+	font-size: clamp( 0.95rem, 2.2vw, 1.15rem );
+	font-weight: 700;
+	color: #0f172a;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__value .woocommerce-Price-amount {
+	font-weight: inherit;
+}
+
+.woocommerce-MyAccount-content .pb-aff-hub-lifetime__meta {
+	font-size: 0.75rem;
+	line-height: 1.35;
+	color: #64748b;
+}
+
+/* -------------------------------------------------------------------------
+ * zip1.io — link curto
+ * ------------------------------------------------------------------------- */
+
+.woocommerce-MyAccount-content .pb-aff-zip1-box {
+	margin: 1.5rem 0;
+	padding: 1rem 1.25rem;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+	flex: 0 0 auto;
+	clear: both;
+	float: none;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-source-row .large-text {
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-alias-label-visible {
+	display: block;
+	margin-bottom: 0.35em;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-alias-wrap {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: stretch;
+	width: 100%;
+	max-width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-alias-prefix {
+	flex: 0 0 auto;
+	padding: 0.5rem 0.65rem;
+	background: #f1f5f9;
+	border: 1px solid var( --wc-gray-400, #c3c4c7 );
+	border-right: 0;
+	border-radius: 4px 0 0 4px;
+	font-size: 0.875rem;
+	line-height: 1.5;
+	color: #475569;
+	white-space: nowrap;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-alias-input.woocommerce-Input {
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+	max-width: 100%;
+	border-radius: 0 4px 4px 0;
+	box-sizing: border-box;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-box h3 {
+	margin-top: 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-notice {
+	margin: 0.75rem 0;
+	padding: 0.65rem 0.85rem;
+	border-radius: 8px;
+	font-size: 0.9rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-notice--error,
+.woocommerce-MyAccount-content .pb-aff-zip1-notice.woocommerce-error {
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	color: #991b1b;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-notice.woocommerce-message {
+	background: #ecfdf5;
+	border: 1px solid #a7f3d0;
+	color: #065f46;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-panel .pb-aff-zip1-row {
+	margin-top: 0.5rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-stats-line {
+	margin: 0.65rem 0 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-replace-line {
+	margin: 0.5rem 0 0;
+}
+
+.woocommerce-MyAccount-content .pb-aff-zip1-replace-line .button {
+	font-size: 0.85rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-link-builder .pb-aff-lb-result {
+	margin-top: 1rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-lb-notice {
+	margin: 0.75rem 0;
+	padding: 0.65rem 0.85rem;
+	border-radius: 8px;
+	font-size: 0.9rem;
+}
+
+.woocommerce-MyAccount-content .pb-aff-lb-notice.pb-aff-zip1-notice--error,
+.woocommerce-MyAccount-content .pb-aff-lb-notice.woocommerce-error {
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	color: #991b1b;
+}
+
+.woocommerce-MyAccount-content .pb-aff-lb-notice.woocommerce-message {
+	background: #ecfdf5;
+	border: 1px solid #a7f3d0;
+	color: #065f46;
+}
+

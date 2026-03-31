@@ -86,7 +86,7 @@ class PB_Affiliates_Public {
 				$notice_key  = 'code_not_active';
 				$notice_type = 'error';
 			} else {
-				$new = isset( $_POST['pb_aff_new_code'] ) ? wp_unslash( $_POST['pb_aff_new_code'] ) : '';
+				$new = isset( $_POST['pb_aff_new_code'] ) ? sanitize_text_field( wp_unslash( $_POST['pb_aff_new_code'] ) ) : '';
 				$new = PB_Affiliates_Attribution::sanitize_affiliate_code( $new );
 				if ( strlen( $new ) < 3 ) {
 					wc_add_notice( __( 'O identificador deve ter pelo menos 3 caracteres (letras minúsculas, números, _ ou -).', 'pb-affiliates' ), 'error' );
@@ -98,13 +98,16 @@ class PB_Affiliates_Public {
 					$notice_type = 'error';
 				} else {
 					update_user_meta( $uid, 'pb_affiliate_code', $new );
+					if ( class_exists( 'PB_Affiliates_Zip1', false ) ) {
+						PB_Affiliates_Zip1::clear_user_cache( $uid );
+					}
 					wc_add_notice( __( 'Identificador atualizado.', 'pb-affiliates' ), 'success' );
 					$notice_key  = 'code_updated';
 					$notice_type = 'success';
 				}
 			}
 
-			$redirect_url = wc_get_account_endpoint_url( PB_Affiliates_Account::ENDPOINT );
+			$redirect_url = wc_get_account_endpoint_url( PB_Affiliates_Account::ENDPOINT_LINKS );
 			if ( '' !== $notice_key ) {
 				$redirect_url = add_query_arg(
 					array(
@@ -127,8 +130,8 @@ class PB_Affiliates_Public {
 				$notice_key  = 'withdraw_not_active';
 				$notice_type = 'error';
 			} else {
-				$amt = isset( $_POST['pb_aff_withdraw_amount'] ) ? wp_unslash( $_POST['pb_aff_withdraw_amount'] ) : '';
-				$amt = (float) wc_format_decimal( is_string( $amt ) ? $amt : '' );
+				$amt = isset( $_POST['pb_aff_withdraw_amount'] ) ? sanitize_text_field( wp_unslash( $_POST['pb_aff_withdraw_amount'] ) ) : '';
+				$amt = (float) wc_format_decimal( $amt );
 				$res = PB_Affiliates_Withdrawal::request( $uid, $amt );
 				if ( is_wp_error( $res ) ) {
 					wc_add_notice( $res->get_error_message(), 'error' );
@@ -212,7 +215,7 @@ class PB_Affiliates_Public {
 				}
 			}
 		}
-		wp_safe_redirect( wc_get_account_endpoint_url( PB_Affiliates_Account::ENDPOINT ) );
+		wp_safe_redirect( wc_get_account_endpoint_url( PB_Affiliates_Account::ENDPOINT_LINKS ) );
 		exit;
 	}
 }

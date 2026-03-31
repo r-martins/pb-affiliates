@@ -123,6 +123,9 @@ class PB_Affiliates_User_Profile {
 		if ( ! current_user_can( 'manage_woocommerce' ) ) {
 			return;
 		}
+		if ( empty( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'update-user_' . $user_id ) ) {
+			return;
+		}
 
 		if ( isset( $_POST['pb_affiliate_status_field'] ) ) {
 			$st = sanitize_key( wp_unslash( $_POST['pb_affiliate_status_field'] ) );
@@ -187,11 +190,11 @@ class PB_Affiliates_User_Profile {
 				if ( ! isset( $_POST[ $f ] ) ) {
 					continue;
 				}
-				$raw = wp_unslash( $_POST[ $f ] );
+				$raw = sanitize_text_field( wp_unslash( $_POST[ $f ] ) );
 				if ( 'pb_affiliate_bank_document' === $f ) {
 					update_user_meta( $user_id, $f, PB_Affiliates_Account::sanitize_document_digits( $raw ) );
 				} else {
-					update_user_meta( $user_id, $f, sanitize_text_field( $raw ) );
+					update_user_meta( $user_id, $f, $raw );
 				}
 			}
 		}

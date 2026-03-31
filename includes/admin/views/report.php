@@ -138,7 +138,13 @@ if ( ! empty( $orders_report_total ) && ! empty( $rows ) ) {
 	<p>
 		<?php
 		if ( $summary ) {
-			echo esc_html( sprintf( __( 'Total de registros: %1$d — Soma de comissões: ', 'pb-affiliates' ), (int) $summary->cnt ) );
+			echo esc_html(
+				sprintf(
+					/* translators: 1: number of commission records in the report */
+					__( 'Total de registros: %1$d — Soma de comissões: ', 'pb-affiliates' ),
+					(int) $summary->cnt
+				)
+			);
 			echo wp_kses_post( wc_price( (float) $summary->total ) );
 		}
 		?>
