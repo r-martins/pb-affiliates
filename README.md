@@ -1,5 +1,5 @@
 # PB Afiliados
-
+![Plugin de Afiliado 100% gratuito para WooCommerce](assets/banner-1544x500.png)
 Programa de afiliados para WooCommerce com integração PagBank Connect: links de indicação, comissões flexíveis, pagamentos manuais ou split automático, relatórios e dashboard para afiliados.
 
 ## Visão geral
@@ -12,6 +12,13 @@ Você define as regras, e o plugin:
 - oferece área do afiliado em **Minha conta**;
 - exibe materiais de apoio ao afiliado definidos por você;
 - entrega relatórios administrativos e operacionais.
+
+### Como funciona
+1. Você instala e define as regras de comissão
+2. Novos afiliados aderem ao programa e começam a divulgar sua loja e seus produtos em seus sites, redes sociais e através de cupons especiais, levando tráfego para seu e-commerce
+3. Ao comprar em sua loja, a comissão é atribuída ao afiliado imediatamente de forma 100% automática
+
+![Mais do que apenas comissões](assets/flow.svg)
 
 ## Principais recursos
 
