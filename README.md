@@ -73,6 +73,38 @@ Observações:
 - Se múltiplas categorias tiverem regra, prevalece a de menor comissão monetária para a linha.
 - A comissão final é a soma das linhas.
 
+## Screenshots
+
+<details>
+  <summary><strong>1) Dashboard do afiliado</strong></summary>
+  <br>
+  <img src="assets/screenshot-1.png" alt="Dashboard do afiliado">
+</details>
+
+<details>
+  <summary><strong>2) Relatórios de desempenho</strong></summary>
+  <br>
+  <img src="assets/screenshot-2.png" alt="Relatórios de desempenho">
+</details>
+
+<details>
+  <summary><strong>3) Cupom especial pro afiliado</strong></summary>
+  <br>
+  <img src="assets/screenshot-3.png" alt="Cupom especial pro afiliado">
+</details>
+
+<details>
+  <summary><strong>4) Relatórios administrativos</strong></summary>
+  <br>
+  <img src="assets/screenshot-4.png" alt="Relatórios administrativos">
+</details>
+
+<details>
+  <summary><strong>5) Configurações do plugin de afiliado</strong></summary>
+  <br>
+  <img src="assets/screenshot-5.png" alt="Configurações do plugin de afiliado">
+</details>
+
 ## FAQ
 
 ### Posso usar sem PagBank Connect?
